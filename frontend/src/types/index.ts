@@ -54,6 +54,8 @@ export interface Shift {
   start: Date;
   end: Date;
   assignee: string;
+  assigneeId: string;
+  department: string;
   type: 'shift' | 'meeting' | 'training';
   status: 'scheduled' | 'in-progress' | 'completed' | 'cancelled';
   description?: string;
