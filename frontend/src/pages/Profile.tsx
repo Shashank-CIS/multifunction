@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { User } from '../types';
 import { 
   UserIcon, 
@@ -13,7 +13,9 @@ import {
   CogIcon,
   BellIcon,
   ShieldCheckIcon,
-  EyeIcon
+  EyeIcon,
+  CameraIcon,
+  PhotoIcon
 } from '@heroicons/react/24/outline';
 
 interface ProfileProps {
@@ -24,11 +26,22 @@ export default function Profile({ user }: ProfileProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [editedUser, setEditedUser] = useState<User>(user);
   const [activeTab, setActiveTab] = useState<'profile' | 'settings' | 'security'>('profile');
+  const [previewPhoto, setPreviewPhoto] = useState<string | null>(null);
+  const [isPhotoChanged, setIsPhotoChanged] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleSave = () => {
     // In a real app, this would make an API call to update the user
     console.log('Saving user profile:', editedUser);
+    
+    // If photo was changed, update the user's avatar
+    if (isPhotoChanged && previewPhoto) {
+      setEditedUser({ ...editedUser, avatar: previewPhoto });
+    }
+    
     setIsEditing(false);
+    setIsPhotoChanged(false);
+    setPreviewPhoto(null);
     // Show success message (you could add a toast notification here)
     alert('Profile updated successfully!');
   };
@@ -36,6 +49,46 @@ export default function Profile({ user }: ProfileProps) {
   const handleCancel = () => {
     setEditedUser(user);
     setIsEditing(false);
+    setPreviewPhoto(null);
+    setIsPhotoChanged(false);
+  };
+
+  const handlePhotoChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      // Validate file type
+      if (!file.type.startsWith('image/')) {
+        alert('Please select a valid image file.');
+        return;
+      }
+
+      // Validate file size (max 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        alert('Image size should be less than 5MB.');
+        return;
+      }
+
+      // Create preview URL
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const result = e.target?.result as string;
+        setPreviewPhoto(result);
+        setIsPhotoChanged(true);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const triggerPhotoUpload = () => {
+    fileInputRef.current?.click();
+  };
+
+  const removePhoto = () => {
+    setPreviewPhoto(null);
+    setIsPhotoChanged(true);
+    // Set to default avatar or empty
+    const defaultAvatar = 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150';
+    setEditedUser({ ...editedUser, avatar: defaultAvatar });
   };
 
   const addSkill = () => {
@@ -78,6 +131,12 @@ export default function Profile({ user }: ProfileProps) {
     { id: 'security', name: 'Security', icon: ShieldCheckIcon },
   ];
 
+  // Get current avatar source
+  const getCurrentAvatar = () => {
+    if (previewPhoto) return previewPhoto;
+    return editedUser.avatar || user.avatar;
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 py-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -86,11 +145,47 @@ export default function Profile({ user }: ProfileProps) {
           <div className="px-6 py-8">
             <div className="flex items-center justify-between">
               <div className="flex items-center">
-                <img
-                  className="h-24 w-24 rounded-full object-cover"
-                  src={user.avatar}
-                  alt={user.name}
-                />
+                {/* Profile Photo with Edit Capability */}
+                <div className="relative">
+                  <img
+                    className="h-24 w-24 rounded-full object-cover border-4 border-white shadow-lg"
+                    src={getCurrentAvatar()}
+                    alt={user.name}
+                  />
+                  {isEditing && (
+                    <>
+                      {/* Camera overlay */}
+                      <div className="absolute inset-0 bg-black bg-opacity-50 rounded-full flex items-center justify-center">
+                        <button
+                          onClick={triggerPhotoUpload}
+                          className="text-white hover:text-gray-300 transition-colors"
+                          title="Change profile photo"
+                        >
+                          <CameraIcon className="w-6 h-6" />
+                        </button>
+                      </div>
+                      
+                      {/* Hidden file input */}
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept="image/*"
+                        onChange={handlePhotoChange}
+                        className="hidden"
+                      />
+                      
+                      {/* Edit icon */}
+                      <button
+                        onClick={triggerPhotoUpload}
+                        className="absolute -bottom-1 -right-1 bg-blue-600 text-white rounded-full p-2 hover:bg-blue-700 transition-colors shadow-lg"
+                        title="Change profile photo"
+                      >
+                        <PencilIcon className="w-3 h-3" />
+                      </button>
+                    </>
+                  )}
+                </div>
+                
                 <div className="ml-6">
                   <h1 className="text-3xl font-bold text-gray-900">{user.name}</h1>
                   <p className="text-lg text-gray-600">{user.department}</p>
@@ -138,6 +233,33 @@ export default function Profile({ user }: ProfileProps) {
                 </div>
               )}
             </div>
+            
+            {/* Photo Change Options (when editing) */}
+            {isEditing && (
+              <div className="mt-4 flex items-center space-x-4">
+                <button
+                  onClick={triggerPhotoUpload}
+                  className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                >
+                  <PhotoIcon className="w-4 h-4 mr-2" />
+                  Upload Photo
+                </button>
+                {previewPhoto && (
+                  <button
+                    onClick={removePhoto}
+                    className="inline-flex items-center px-3 py-2 border border-red-300 shadow-sm text-sm leading-4 font-medium rounded-md text-red-700 bg-white hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+                  >
+                    <XMarkIcon className="w-4 h-4 mr-2" />
+                    Remove
+                  </button>
+                )}
+                {isPhotoChanged && (
+                  <span className="text-sm text-green-600 font-medium">
+                    ✓ Photo updated
+                  </span>
+                )}
+              </div>
+            )}
           </div>
         </div>
 
