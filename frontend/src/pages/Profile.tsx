@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { User } from '../types';
 import { 
   UserIcon, 
@@ -24,30 +24,45 @@ interface ProfileProps {
 
 export default function Profile({ user }: ProfileProps) {
   const [isEditing, setIsEditing] = useState(false);
+  const [currentUser, setCurrentUser] = useState<User>(user);
   const [editedUser, setEditedUser] = useState<User>(user);
   const [activeTab, setActiveTab] = useState<'profile' | 'settings' | 'security'>('profile');
   const [previewPhoto, setPreviewPhoto] = useState<string | null>(null);
   const [isPhotoChanged, setIsPhotoChanged] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Update states when user prop changes
+  useEffect(() => {
+    setCurrentUser(user);
+    setEditedUser(user);
+  }, [user]);
+
   const handleSave = () => {
-    // In a real app, this would make an API call to update the user
-    console.log('Saving user profile:', editedUser);
+    // Update the current user with edited data
+    let updatedUser = { ...editedUser };
     
     // If photo was changed, update the user's avatar
     if (isPhotoChanged && previewPhoto) {
-      setEditedUser({ ...editedUser, avatar: previewPhoto });
+      updatedUser = { ...updatedUser, avatar: previewPhoto };
     }
+    
+    // Update the current user state
+    setCurrentUser(updatedUser);
+    setEditedUser(updatedUser);
     
     setIsEditing(false);
     setIsPhotoChanged(false);
     setPreviewPhoto(null);
+    
+    // In a real app, this would make an API call to update the user
+    console.log('Saving user profile:', updatedUser);
+    
     // Show success message (you could add a toast notification here)
     alert('Profile updated successfully!');
   };
 
   const handleCancel = () => {
-    setEditedUser(user);
+    setEditedUser(currentUser);
     setIsEditing(false);
     setPreviewPhoto(null);
     setIsPhotoChanged(false);
@@ -134,8 +149,11 @@ export default function Profile({ user }: ProfileProps) {
   // Get current avatar source
   const getCurrentAvatar = () => {
     if (previewPhoto) return previewPhoto;
-    return editedUser.avatar || user.avatar;
+    return editedUser.avatar || currentUser.avatar;
   };
+
+  // Use currentUser for display, editedUser for editing
+  const displayUser = isEditing ? editedUser : currentUser;
 
   return (
     <div className="min-h-screen bg-gray-50 py-8">
@@ -150,7 +168,7 @@ export default function Profile({ user }: ProfileProps) {
                   <img
                     className="h-24 w-24 rounded-full object-cover border-4 border-white shadow-lg"
                     src={getCurrentAvatar()}
-                    alt={user.name}
+                    alt={displayUser.name}
                   />
                   {isEditing && (
                     <>
@@ -187,20 +205,20 @@ export default function Profile({ user }: ProfileProps) {
                 </div>
                 
                 <div className="ml-6">
-                  <h1 className="text-3xl font-bold text-gray-900">{user.name}</h1>
-                  <p className="text-lg text-gray-600">{user.department}</p>
+                  <h1 className="text-3xl font-bold text-gray-900">{displayUser.name}</h1>
+                  <p className="text-lg text-gray-600">{displayUser.department}</p>
                   <div className="flex items-center mt-2">
                     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                      user.isOnline ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
+                      displayUser.isOnline ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
                     }`}>
                       <span className={`w-2 h-2 rounded-full mr-1.5 ${
-                        user.isOnline ? 'bg-green-400' : 'bg-gray-400'
+                        displayUser.isOnline ? 'bg-green-400' : 'bg-gray-400'
                       }`}></span>
-                      {user.isOnline ? 'Online' : 'Offline'}
+                      {displayUser.isOnline ? 'Online' : 'Offline'}
                     </span>
                     <span className="ml-4 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
                       <StarIcon className="w-3 h-3 mr-1" />
-                      {user.points} points
+                      {displayUser.points} points
                     </span>
                   </div>
                 </div>
@@ -308,7 +326,7 @@ export default function Profile({ user }: ProfileProps) {
                       ) : (
                         <div className="flex items-center">
                           <UserIcon className="w-5 h-5 text-gray-400 mr-2" />
-                          <span>{user.name}</span>
+                          <span>{displayUser.name}</span>
                         </div>
                       )}
                     </div>
@@ -327,7 +345,7 @@ export default function Profile({ user }: ProfileProps) {
                       ) : (
                         <div className="flex items-center">
                           <EnvelopeIcon className="w-5 h-5 text-gray-400 mr-2" />
-                          <span>{user.email}</span>
+                          <span>{displayUser.email}</span>
                         </div>
                       )}
                     </div>
@@ -352,7 +370,7 @@ export default function Profile({ user }: ProfileProps) {
                       ) : (
                         <div className="flex items-center">
                           <BuildingOfficeIcon className="w-5 h-5 text-gray-400 mr-2" />
-                          <span>{user.department}</span>
+                          <span>{displayUser.department}</span>
                         </div>
                       )}
                     </div>
@@ -363,7 +381,7 @@ export default function Profile({ user }: ProfileProps) {
                       </label>
                       <div className="flex items-center">
                         <CalendarIcon className="w-5 h-5 text-gray-400 mr-2" />
-                        <span>{new Date(user.joinDate).toLocaleDateString()}</span>
+                        <span>{new Date(displayUser.joinDate).toLocaleDateString()}</span>
                       </div>
                     </div>
                   </div>
@@ -383,7 +401,7 @@ export default function Profile({ user }: ProfileProps) {
                     )}
                   </div>
                   <div className="flex flex-wrap gap-2">
-                    {(isEditing ? editedUser.skills : user.skills).map((skill, index) => (
+                    {displayUser.skills.map((skill, index) => (
                       <span
                         key={index}
                         className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800"
@@ -416,7 +434,7 @@ export default function Profile({ user }: ProfileProps) {
                     )}
                   </div>
                   <div className="flex flex-wrap gap-2">
-                    {(isEditing ? editedUser.interests : user.interests).map((interest, index) => (
+                    {displayUser.interests.map((interest, index) => (
                       <span
                         key={index}
                         className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800"
@@ -439,7 +457,7 @@ export default function Profile({ user }: ProfileProps) {
                 <div>
                   <h3 className="text-lg font-medium text-gray-900 mb-4">Achievements</h3>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    {user.badges.map((badge) => (
+                    {displayUser.badges.map((badge) => (
                       <div
                         key={badge.id}
                         className="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow"
