@@ -143,9 +143,12 @@ export default function Layout({ children, currentUser, sidebarOpen, setSidebarO
               <button className="p-2 text-gray-400 hover:text-gray-500 hover:bg-gray-100 rounded-lg">
                 <Bell className="w-5 h-5" />
               </button>
-              <button className="p-2 text-gray-400 hover:text-gray-500 hover:bg-gray-100 rounded-lg">
+              <Link 
+                to="/profile"
+                className="p-2 text-gray-400 hover:text-gray-500 hover:bg-gray-100 rounded-lg transition-colors"
+              >
                 <Settings className="w-5 h-5" />
-              </button>
+              </Link>
             </div>
           </div>
         </header>
