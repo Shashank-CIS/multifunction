@@ -14,15 +14,15 @@ import { User } from './types';
 // Mock current user - in real app this would come from authentication
 const mockUser: User = {
   id: '1',
-  name: 'John Doe',
-  email: 'john.doe@cognizant.com',
+  name: 'Shashankagowda S',
+  email: 'shashankagowda.s@cognizant.com',
   avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150',
   role: 'support',
-  skills: ['React', 'TypeScript', 'Node.js', 'AWS'],
-  interests: ['Frontend Development', 'Cloud Computing', 'DevOps'],
-  department: 'Engineering',
-  joinDate: '2023-01-15',
-  points: 1250,
+  skills: ['React', 'TypeScript', 'Node.js', 'AWS', 'JavaScript', 'Python'],
+  interests: ['Frontend Development', 'Cloud Computing', 'DevOps', 'AI/ML', 'Full Stack Development'],
+  department: 'Customer Intelligence & Insights',
+  joinDate: '2023-08-15',
+  points: 1850,
   badges: [
     {
       id: '1',
@@ -39,6 +39,14 @@ const mockUser: User = {
       icon: '🎓',
       color: '#10b981',
       earnedAt: '2023-10-15'
+    },
+    {
+      id: '3',
+      name: 'Innovation Leader',
+      description: 'Led 3+ innovative projects',
+      icon: '💡',
+      color: '#3b82f6',
+      earnedAt: '2023-12-01'
     }
   ],
   isOnline: true
