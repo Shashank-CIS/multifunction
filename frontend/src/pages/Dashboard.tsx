@@ -9,7 +9,13 @@ import {
   CheckCircle,
   AlertCircle,
   MessageSquare,
-  BookOpen
+  BookOpen,
+  Settings,
+  Bell,
+  Palette,
+  Shield,
+  Globe,
+  Monitor
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
@@ -68,11 +74,24 @@ const mockTodaysTip = {
 
 export default function Dashboard() {
   const [currentTime, setCurrentTime] = useState(new Date());
+  const [settings, setSettings] = useState({
+    notifications: true,
+    darkMode: false,
+    autoRefresh: true,
+    compactView: false
+  });
 
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
     return () => clearInterval(timer);
   }, []);
+
+  const handleSettingChange = (setting: string, value: boolean) => {
+    setSettings(prev => ({
+      ...prev,
+      [setting]: value
+    }));
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-indigo-100">
@@ -95,7 +114,7 @@ export default function Dashboard() {
                 </div>
                 <div className="flex items-center space-x-2">
                   <Clock className="w-4 h-4 text-blue-200" />
-                  <span className="text-blue-100">{currentTime.toLocaleTimeString()}</span>
+                  <span className="text-blue-100">{currentTime.toLocaleDateString()}</span>
                 </div>
               </div>
             </div>
@@ -230,7 +249,7 @@ export default function Dashboard() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
           {/* Quick Access */}
           <div className="lg:col-span-2">
             <div className="bg-white/70 backdrop-blur-md rounded-2xl p-6 shadow-xl border border-white/20">
@@ -339,8 +358,110 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Recent Activity */}
-        <div className="mt-6">
+        {/* Dashboard Settings */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+          {/* Quick Settings */}
+          <div className="relative group">
+            <div className="absolute inset-0 bg-gradient-to-br from-slate-200 to-gray-200 rounded-2xl blur opacity-30 group-hover:opacity-50 transition-opacity"></div>
+            <div className="relative bg-white/70 backdrop-blur-md rounded-2xl p-6 shadow-xl border border-white/20">
+              <div className="flex items-center mb-6">
+                <div className="p-2 bg-gradient-to-r from-slate-500 to-gray-500 rounded-lg mr-3">
+                  <Settings className="w-5 h-5 text-white" />
+                </div>
+                <h2 className="text-xl font-bold bg-gradient-to-r from-slate-600 to-gray-600 bg-clip-text text-transparent">
+                  ⚙️ Dashboard Settings
+                </h2>
+              </div>
+              <div className="space-y-4">
+                <div className="flex items-center justify-between p-3 bg-gradient-to-r from-slate-50 to-gray-50 rounded-xl border border-slate-200/50">
+                  <div className="flex items-center space-x-3">
+                    <Bell className="w-5 h-5 text-slate-600" />
+                    <div>
+                      <h4 className="font-medium text-gray-800">Notifications</h4>
+                      <p className="text-xs text-gray-600">Enable dashboard alerts</p>
+                    </div>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input 
+                      type="checkbox" 
+                      className="sr-only peer" 
+                      checked={settings.notifications}
+                      onChange={(e) => handleSettingChange('notifications', e.target.checked)}
+                    />
+                    <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                  </label>
+                </div>
+
+                <div className="flex items-center justify-between p-3 bg-gradient-to-r from-slate-50 to-gray-50 rounded-xl border border-slate-200/50">
+                  <div className="flex items-center space-x-3">
+                    <Palette className="w-5 h-5 text-slate-600" />
+                    <div>
+                      <h4 className="font-medium text-gray-800">Dark Mode</h4>
+                      <p className="text-xs text-gray-600">Toggle dark theme</p>
+                    </div>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input 
+                      type="checkbox" 
+                      className="sr-only peer" 
+                      checked={settings.darkMode}
+                      onChange={(e) => handleSettingChange('darkMode', e.target.checked)}
+                    />
+                    <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-purple-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-600"></div>
+                  </label>
+                </div>
+
+                <div className="flex items-center justify-between p-3 bg-gradient-to-r from-slate-50 to-gray-50 rounded-xl border border-slate-200/50">
+                  <div className="flex items-center space-x-3">
+                    <Monitor className="w-5 h-5 text-slate-600" />
+                    <div>
+                      <h4 className="font-medium text-gray-800">Auto Refresh</h4>
+                      <p className="text-xs text-gray-600">Auto-refresh data every 30s</p>
+                    </div>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input 
+                      type="checkbox" 
+                      className="sr-only peer" 
+                      checked={settings.autoRefresh}
+                      onChange={(e) => handleSettingChange('autoRefresh', e.target.checked)}
+                    />
+                    <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-green-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-600"></div>
+                  </label>
+                </div>
+
+                <div className="flex items-center justify-between p-3 bg-gradient-to-r from-slate-50 to-gray-50 rounded-xl border border-slate-200/50">
+                  <div className="flex items-center space-x-3">
+                    <Globe className="w-5 h-5 text-slate-600" />
+                    <div>
+                      <h4 className="font-medium text-gray-800">Compact View</h4>
+                      <p className="text-xs text-gray-600">Reduce spacing and padding</p>
+                    </div>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input 
+                      type="checkbox" 
+                      className="sr-only peer" 
+                      checked={settings.compactView}
+                      onChange={(e) => handleSettingChange('compactView', e.target.checked)}
+                    />
+                    <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-orange-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-orange-600"></div>
+                  </label>
+                </div>
+              </div>
+              <div className="mt-4 pt-4 border-t border-gray-200">
+                <Link 
+                  to="/profile" 
+                  className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-slate-500 to-gray-500 text-white rounded-lg hover:from-slate-600 hover:to-gray-600 transition-all duration-300 hover:shadow-lg text-sm font-medium"
+                >
+                  <Shield className="w-4 h-4 mr-2" />
+                  Advanced Settings
+                </Link>
+              </div>
+            </div>
+          </div>
+
+          {/* Recent Activity */}
           <div className="relative group">
             <div className="absolute inset-0 bg-gradient-to-br from-indigo-200 to-purple-200 rounded-2xl blur opacity-30 group-hover:opacity-50 transition-opacity"></div>
             <div className="relative bg-white/70 backdrop-blur-md rounded-2xl p-6 shadow-xl border border-white/20">
@@ -373,25 +494,6 @@ export default function Dashboard() {
                   </div>
                 ))}
               </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Enhanced Time Widget */}
-        <div className="fixed bottom-6 right-6 group">
-          <div className="absolute inset-0 bg-gradient-to-br from-blue-400 to-purple-400 rounded-2xl blur opacity-50 group-hover:opacity-70 transition-opacity"></div>
-          <div className="relative bg-white/90 backdrop-blur-md rounded-2xl p-6 shadow-2xl border border-white/30">
-            <div className="text-center">
-              <div className="p-2 bg-gradient-to-br from-blue-500 to-purple-500 rounded-lg inline-block mb-3">
-                <Clock className="w-4 h-4 text-white" />
-              </div>
-              <p className="text-xs font-medium text-gray-600 mb-2">Current Time</p>
-              <p className="text-lg font-mono font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                {currentTime.toLocaleTimeString()}
-              </p>
-              <p className="text-xs text-gray-500 mt-1">
-                {currentTime.toLocaleDateString()}
-              </p>
             </div>
           </div>
         </div>
