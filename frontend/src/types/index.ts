@@ -47,7 +47,120 @@ export interface AISearch {
   confidence: number;
 }
 
-// Scheduler Types
+// Enhanced Scheduler Types for Enterprise Scale
+export interface Engineer {
+  id: string;
+  employeeId: string;
+  name: string;
+  email: string;
+  phone: string;
+  avatar?: string;
+  team: Team;
+  department: Department;
+  location: Location;
+  skills: string[];
+  shiftHistory: ShiftAssignment[];
+  currentProject?: Project;
+  isTeamLead: boolean;
+  isOnCall: boolean;
+  status: 'active' | 'inactive' | 'on-leave' | 'terminated';
+  joinDate: string;
+  emergencyContact?: EmergencyContact;
+  certifications: string[];
+  experience: number; // years
+}
+
+export interface Team {
+  id: string;
+  name: string;
+  code: string;
+  description: string;
+  color: string;
+  department: Department;
+  teamLeadId?: string;
+  memberIds: string[];
+  createdAt: string;
+  maxCapacity: number;
+}
+
+export interface Department {
+  id: string;
+  name: string;
+  code: string;
+  description: string;
+  color: string;
+  managerId?: string;
+  teamIds: string[];
+  budget?: number;
+  headCount: number;
+  location: Location;
+}
+
+export interface Location {
+  id: string;
+  name: string;
+  address: string;
+  city: string;
+  country: string;
+  timezone: string;
+  capacity: number;
+  facilities: string[];
+}
+
+export interface Project {
+  id: string;
+  name: string;
+  code: string;
+  description: string;
+  status: 'active' | 'completed' | 'on-hold' | 'cancelled';
+  startDate: string;
+  endDate?: string;
+  teamId: string;
+  assignedEngineerIds: string[];
+  priority: 'low' | 'medium' | 'high' | 'critical';
+  budget?: number;
+  client?: string;
+}
+
+export interface ShiftType {
+  id: string;
+  name: string;
+  code: string;
+  startTime: string; // HH:mm format
+  endTime: string; // HH:mm format
+  duration: number; // in hours
+  color: string;
+  isOvernight: boolean;
+  minimumStaff: number;
+  maximumStaff: number;
+  payMultiplier: number; // 1.0 = normal, 1.5 = overtime, etc.
+}
+
+export interface ShiftAssignment {
+  id: string;
+  engineerId: string;
+  shiftTypeId: string;
+  date: string; // YYYY-MM-DD format
+  locationId: string;
+  projectId?: string;
+  status: 'scheduled' | 'active' | 'completed' | 'cancelled' | 'no-show';
+  assignedById: string;
+  assignedAt: string;
+  notes?: string;
+  checkInTime?: string;
+  checkOutTime?: string;
+  breakMinutes?: number;
+  overtimeHours?: number;
+}
+
+export interface EmergencyContact {
+  name: string;
+  relationship: string;
+  phone: string;
+  email?: string;
+}
+
+// Legacy Scheduler Types (for backward compatibility)
 export interface Shift {
   id: string;
   title: string;
@@ -72,6 +185,32 @@ export interface Task {
   createdAt: string;
   estimatedHours: number;
   category: string;
+}
+
+// Scheduling Filters and Views
+export interface SchedulerFilters {
+  dateRange: {
+    start: string;
+    end: string;
+  };
+  teams: string[];
+  departments: string[];
+  projects: string[];
+  locations: string[];
+  shiftTypes: string[];
+  engineers: string[];
+}
+
+export interface CurrentShiftView {
+  id: string;
+  engineer: Engineer;
+  shiftType: ShiftType;
+  location: Location;
+  project?: Project;
+  checkInTime: string;
+  expectedEndTime: string;
+  status: 'on-time' | 'late' | 'early' | 'overtime';
+  currentTask?: string;
 }
 
 // Collaboration Types

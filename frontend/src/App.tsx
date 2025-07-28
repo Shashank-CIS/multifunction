@@ -4,6 +4,9 @@ import Layout from './components/Layout/Layout';
 import Dashboard from './pages/Dashboard';
 import KnowledgeBase from './pages/KnowledgeBase';
 import Scheduler from './pages/Scheduler';
+import EngineerDirectory from './pages/EngineerDirectory';
+import CurrentShiftDashboard from './pages/CurrentShiftDashboard';
+import AdminPanel from './pages/AdminPanel';
 import Collaboration from './pages/Collaboration';
 import Mentorship from './pages/Mentorship';
 import TechTips from './pages/TechTips';
@@ -67,6 +70,9 @@ function App() {
           <Route path="/" element={<Dashboard />} />
           <Route path="/knowledge-base" element={<KnowledgeBase />} />
           <Route path="/scheduler" element={<Scheduler />} />
+          <Route path="/scheduler/engineers" element={<EngineerDirectory />} />
+          <Route path="/scheduler/current-shifts" element={<CurrentShiftDashboard />} />
+          <Route path="/scheduler/admin" element={<AdminPanel />} />
           <Route path="/collaboration" element={<Collaboration />} />
           <Route path="/mentorship" element={<Mentorship />} />
           <Route path="/tech-tips" element={<TechTips />} />
