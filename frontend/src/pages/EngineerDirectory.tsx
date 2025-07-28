@@ -75,24 +75,92 @@ const mockDepartments = [
 
 const mockLocations = [
   {
-    id: 'hq-blr',
-    name: 'Bangalore HQ',
-    address: 'Electronics City, Bangalore',
-    city: 'Bangalore',
+    id: 'chennai-dlf',
+    name: 'Cognizant DLF Chennai',
+    address: 'DLF IT Park Block 9, 1/124 Shivaji Gardens, Ramapuram, Mount Poonamallee High Road, Chennai 600 089, Tamil Nadu',
+    city: 'Chennai',
+    state: 'Tamil Nadu',
     country: 'India',
+    pincode: '600089',
     timezone: 'Asia/Kolkata',
-    capacity: 500,
-    facilities: ['Cafeteria', 'Parking', 'Gym', 'Medical']
+    isHeadquarter: true
   },
   {
-    id: 'hyd-campus',
-    name: 'Hyderabad Campus',
-    address: 'HITEC City, Hyderabad',
-    city: 'Hyderabad',
+    id: 'chennai-mepz',
+    name: 'Cognizant MEPZ Campus',
+    address: 'Madras Export Processing Zone (MEPZ), Plot No.A-17, D-2, C-10 & C-1, National Highway 45, Tambaram, Chennai 600 045, Tamil Nadu',
+    city: 'Chennai',
+    state: 'Tamil Nadu',
     country: 'India',
+    pincode: '600045',
     timezone: 'Asia/Kolkata',
-    capacity: 300,
-    facilities: ['Cafeteria', 'Parking', 'Medical']
+    isHeadquarter: false
+  },
+  {
+    id: 'bengaluru-manyata',
+    name: 'Cognizant Bengaluru Manyata',
+    address: 'Manyata Embassy Business Park, F3 and G3 Buildings, Outer Ring Road, Near Nagawara, Rachenahalli Village, Bengaluru 560 045, Karnataka',
+    city: 'Bengaluru',
+    state: 'Karnataka',
+    country: 'India',
+    pincode: '560045',
+    timezone: 'Asia/Kolkata',
+    isHeadquarter: false
+  },
+  {
+    id: 'hyderabad-gachibowli',
+    name: 'Cognizant Hyderabad Gachibowli',
+    address: 'H-04 Vignesh Hi-tech City-2, Survey No. 30(P), 35(P) & 35 (P), Gachibowli, Serilingampally Mandal, Hyderabad 500 019, Telangana',
+    city: 'Hyderabad',
+    state: 'Telangana',
+    country: 'India',
+    pincode: '500019',
+    timezone: 'Asia/Kolkata',
+    isHeadquarter: false
+  },
+  {
+    id: 'pune-hinjewadi',
+    name: 'Cognizant Pune Hinjewadi',
+    address: 'Plot No.16, Phase III, Rajiv Gandhi Infotech Park, Hinjawadi, Pune 411 057, Maharashtra',
+    city: 'Pune',
+    state: 'Maharashtra',
+    country: 'India',
+    pincode: '411057',
+    timezone: 'Asia/Kolkata',
+    isHeadquarter: false
+  },
+  {
+    id: 'kolkata-saltlake',
+    name: 'Cognizant Kolkata Salt Lake',
+    address: 'Technocomplex, Plot-GN 34/3, Sector V, Salt Lake Electronics Complex, Kolkata 700 091, West Bengal',
+    city: 'Kolkata',
+    state: 'West Bengal',
+    country: 'India',
+    pincode: '700091',
+    timezone: 'Asia/Kolkata',
+    isHeadquarter: false
+  },
+  {
+    id: 'mumbai-navi',
+    name: 'Cognizant Navi Mumbai',
+    address: 'Unit Nos. 701, 702 & 601, SEZ Building No.5 & 9, Mindspace-Airoli, Thane Belapur Road, Navi Mumbai 400 708, Maharashtra',
+    city: 'Navi Mumbai',
+    state: 'Maharashtra',
+    country: 'India',
+    pincode: '400708',
+    timezone: 'Asia/Kolkata',
+    isHeadquarter: false
+  },
+  {
+    id: 'coimbatore-kgisl',
+    name: 'Cognizant Coimbatore Campus',
+    address: 'KGISL-SEZ-FO Special Economic Zone (SEZ), Saravanampatti VIA, Coimbatore North, Keeranatham Village, Coimbatore 641 035, Tamil Nadu',
+    city: 'Coimbatore',
+    state: 'Tamil Nadu',
+    country: 'India',
+    pincode: '641035',
+    timezone: 'Asia/Kolkata',
+    isHeadquarter: false
   }
 ];
 

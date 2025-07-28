@@ -101,10 +101,13 @@ export interface Location {
   name: string;
   address: string;
   city: string;
+  state?: string;
   country: string;
+  pincode?: string;
   timezone: string;
-  capacity: number;
-  facilities: string[];
+  capacity?: number;
+  facilities?: string[];
+  isHeadquarter?: boolean;
 }
 
 export interface Project {

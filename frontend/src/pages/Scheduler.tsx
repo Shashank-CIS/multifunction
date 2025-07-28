@@ -1,8 +1,6 @@
 import { useState, useEffect } from 'react';
-import { Calendar, momentLocalizer } from 'react-big-calendar';
 import moment from 'moment';
 import { 
-  Calendar as CalendarIcon, 
   Users, 
   Filter, 
   Plus, 
@@ -22,179 +20,450 @@ import {
 import { Link } from 'react-router-dom';
 import { Engineer, ShiftType, ShiftAssignment, Team, Department, Location, Project, SchedulerFilters } from '@/types';
 
-const localizer = momentLocalizer(moment);
 
-// Mock Data for Enterprise Scale
+
+// CIS Shift Types - 10 hour shifts with multiple login timings
 const mockShiftTypes: ShiftType[] = [
   {
-    id: 'morning',
-    name: 'Morning Shift',
-    code: 'MS',
+    id: 'shift-a',
+    name: 'Shift A (Day)',
+    code: 'A',
     startTime: '06:00',
-    endTime: '14:00',
-    duration: 8,
-    color: '#FCD34D',
+    endTime: '16:00',
+    duration: 10,
+    color: '#3B82F6',
     isOvernight: false,
-    minimumStaff: 50,
-    maximumStaff: 100,
+    minimumStaff: 25,
+    maximumStaff: 40,
     payMultiplier: 1.0
   },
   {
-    id: 'evening',
-    name: 'Evening Shift',
-    code: 'ES',
+    id: 'shift-b',
+    name: 'Shift B (Evening)',
+    code: 'B',
     startTime: '14:00',
-    endTime: '22:00',
-    duration: 8,
-    color: '#FB7185',
-    isOvernight: false,
-    minimumStaff: 40,
-    maximumStaff: 80,
-    payMultiplier: 1.1
+    endTime: '00:00',
+    duration: 10,
+    color: '#10B981',
+    isOvernight: true,
+    minimumStaff: 20,
+    maximumStaff: 35,
+    payMultiplier: 1.2
   },
   {
-    id: 'night',
-    name: 'Night Shift',
-    code: 'NS',
+    id: 'shift-c',
+    name: 'Shift C (Night)',
+    code: 'C',
     startTime: '22:00',
-    endTime: '06:00',
-    duration: 8,
-    color: '#A78BFA',
+    endTime: '08:00',
+    duration: 10,
+    color: '#8B5CF6',
     isOvernight: true,
-    minimumStaff: 30,
-    maximumStaff: 60,
+    minimumStaff: 15,
+    maximumStaff: 25,
     payMultiplier: 1.5
+  },
+  {
+    id: 'shift-d',
+    name: 'Shift D (Early)',
+    code: 'D',
+    startTime: '04:00',
+    endTime: '14:00',
+    duration: 10,
+    color: '#F59E0B',
+    isOvernight: false,
+    minimumStaff: 18,
+    maximumStaff: 30,
+    payMultiplier: 1.3
+  },
+  {
+    id: 'shift-e',
+    name: 'Shift E (Late)',
+    code: 'E',
+    startTime: '16:00',
+    endTime: '02:00',
+    duration: 10,
+    color: '#EF4444',
+    isOvernight: true,
+    minimumStaff: 20,
+    maximumStaff: 32,
+    payMultiplier: 1.4
   }
 ];
 
 const mockTeams: Team[] = [
   {
-    id: 'network',
-    name: 'Network Team',
-    code: 'NET',
-    description: 'Network infrastructure and security',
+    id: 'noc',
+    name: 'Network Operations Center',
+    code: 'NOC',
+    description: '24/7 network monitoring and incident response',
     color: '#3B82F6',
     department: {} as Department,
     teamLeadId: 'eng-001',
     memberIds: [],
     createdAt: '2023-01-01',
-    maxCapacity: 25
+    maxCapacity: 30
   },
   {
-    id: 'os',
-    name: 'OS Support',
-    code: 'OS',
-    description: 'Operating system support and maintenance',
+    id: 'server-ops',
+    name: 'Server Operations',
+    code: 'SRV',
+    description: 'Server infrastructure and maintenance',
     color: '#10B981',
     department: {} as Department,
     teamLeadId: 'eng-002',
     memberIds: [],
     createdAt: '2023-01-01',
-    maxCapacity: 30
+    maxCapacity: 25
   },
   {
-    id: 'desktop',
-    name: 'Desktop Support',
-    code: 'DSK',
-    description: 'End-user desktop and hardware support',
+    id: 'dba',
+    name: 'Database Administration',
+    code: 'DBA',
+    description: 'Database management and performance tuning',
     color: '#F59E0B',
     department: {} as Department,
     teamLeadId: 'eng-003',
     memberIds: [],
     createdAt: '2023-01-01',
-    maxCapacity: 40
+    maxCapacity: 20
   },
   {
-    id: 'infra',
-    name: 'Infrastructure',
-    code: 'INF',
-    description: 'Data center and cloud infrastructure',
+    id: 'cloud-ops',
+    name: 'Cloud Operations',
+    code: 'CLD',
+    description: 'AWS, Azure, and GCP infrastructure management',
     color: '#8B5CF6',
     department: {} as Department,
     teamLeadId: 'eng-004',
     memberIds: [],
     createdAt: '2023-01-01',
-    maxCapacity: 20
+    maxCapacity: 22
+  },
+  {
+    id: 'security-ops',
+    name: 'Security Operations',
+    code: 'SOC',
+    description: 'Security monitoring and incident response',
+    color: '#EF4444',
+    department: {} as Department,
+    teamLeadId: 'eng-005',
+    memberIds: [],
+    createdAt: '2023-01-01',
+    maxCapacity: 18
+  },
+  {
+    id: 'service-desk',
+    name: 'Service Desk',
+    code: 'SD',
+    description: 'L1/L2 support and ticket management',
+    color: '#06B6D4',
+    department: {} as Department,
+    teamLeadId: 'eng-006',
+    memberIds: [],
+    createdAt: '2023-01-01',
+    maxCapacity: 35
   }
 ];
 
 const mockDepartments: Department[] = [
   {
-    id: 'it-ops',
-    name: 'IT Operations',
-    code: 'ITOPS',
-    description: 'IT Operations and Infrastructure',
+    id: 'network-security',
+    name: 'Network & Security Operations',
+    code: 'NETSEC',
+    description: 'Network monitoring and security operations',
     color: '#3B82F6',
     managerId: 'mgr-001',
-    teamIds: ['network', 'infra'],
+    teamIds: ['noc', 'security-ops'],
+    headCount: 48,
+    location: {} as Location
+  },
+  {
+    id: 'server-db',
+    name: 'Server & Database Operations',
+    code: 'SRVDB',
+    description: 'Server infrastructure and database management',
+    color: '#10B981',
+    managerId: 'mgr-002',
+    teamIds: ['server-ops', 'dba'],
     headCount: 45,
     location: {} as Location
   },
   {
-    id: 'support',
-    name: 'Technical Support',
-    code: 'SUPP',
-    description: 'End-user technical support',
-    color: '#10B981',
-    managerId: 'mgr-002',
-    teamIds: ['os', 'desktop'],
-    headCount: 70,
+    id: 'cloud-services',
+    name: 'Cloud & Platform Services',
+    code: 'CLOUD',
+    description: 'Cloud infrastructure and platform management',
+    color: '#8B5CF6',
+    managerId: 'mgr-003',
+    teamIds: ['cloud-ops'],
+    headCount: 22,
+    location: {} as Location
+  },
+  {
+    id: 'service-support',
+    name: 'Service Desk & Support',
+    code: 'SUPPORT',
+    description: 'Customer support and incident management',
+    color: '#06B6D4',
+    managerId: 'mgr-004',
+    teamIds: ['service-desk'],
+    headCount: 35,
     location: {} as Location
   }
 ];
 
 const mockLocations: Location[] = [
   {
-    id: 'hq-blr',
-    name: 'Bangalore HQ',
-    address: 'Electronics City, Bangalore',
-    city: 'Bangalore',
+    id: 'chennai-dlf',
+    name: 'Cognizant DLF Chennai',
+    address: 'DLF IT Park Block 9, 1/124 Shivaji Gardens, Ramapuram, Mount Poonamallee High Road, Chennai 600 089, Tamil Nadu',
+    city: 'Chennai',
+    state: 'Tamil Nadu',
     country: 'India',
+    pincode: '600089',
     timezone: 'Asia/Kolkata',
-    capacity: 500,
-    facilities: ['Cafeteria', 'Parking', 'Gym', 'Medical']
+    isHeadquarter: true
   },
   {
-    id: 'hyd-campus',
-    name: 'Hyderabad Campus',
-    address: 'HITEC City, Hyderabad',
-    city: 'Hyderabad',
+    id: 'chennai-mepz',
+    name: 'Cognizant MEPZ Campus',
+    address: 'Madras Export Processing Zone (MEPZ), Plot No.A-17, D-2, C-10 & C-1, National Highway 45, Tambaram, Chennai 600 045, Tamil Nadu',
+    city: 'Chennai',
+    state: 'Tamil Nadu',
     country: 'India',
+    pincode: '600045',
     timezone: 'Asia/Kolkata',
-    capacity: 300,
-    facilities: ['Cafeteria', 'Parking', 'Medical']
+    isHeadquarter: false
+  },
+  {
+    id: 'chennai-siruseri',
+    name: 'Cognizant Siruseri SEZ',
+    address: 'Siruseri Special Economic Zone, Plot no B 40,41,42 & 44, SIPCOT Siruseri IT Park, Padur Post, Siruseri, Chennai 603 103, Tamil Nadu',
+    city: 'Chennai',
+    state: 'Tamil Nadu',
+    country: 'India',
+    pincode: '603103',
+    timezone: 'Asia/Kolkata',
+    isHeadquarter: false
+  },
+  {
+    id: 'bengaluru-manyata',
+    name: 'Cognizant Bengaluru Manyata',
+    address: 'Manyata Embassy Business Park, F3 and G3 Buildings, Outer Ring Road, Near Nagawara, Rachenahalli Village, Bengaluru 560 045, Karnataka',
+    city: 'Bengaluru',
+    state: 'Karnataka',
+    country: 'India',
+    pincode: '560045',
+    timezone: 'Asia/Kolkata',
+    isHeadquarter: false
+  },
+  {
+    id: 'bengaluru-bagmane',
+    name: 'Cognizant Bengaluru East',
+    address: 'Bagmane Solarium City, Near Graphite India Road, Doddanekundi Extension, Bengaluru East 560037, Karnataka',
+    city: 'Bengaluru',
+    state: 'Karnataka',
+    country: 'India',
+    pincode: '560037',
+    timezone: 'Asia/Kolkata',
+    isHeadquarter: false
+  },
+  {
+    id: 'hyderabad-gachibowli',
+    name: 'Cognizant Hyderabad Gachibowli',
+    address: 'H-04 Vignesh Hi-tech City-2, Survey No. 30(P), 35(P) & 35 (P), Gachibowli, Serilingampally Mandal, Hyderabad 500 019, Telangana',
+    city: 'Hyderabad',
+    state: 'Telangana',
+    country: 'India',
+    pincode: '500019',
+    timezone: 'Asia/Kolkata',
+    isHeadquarter: false
+  },
+  {
+    id: 'hyderabad-madhapur',
+    name: 'Cognizant Hyderabad Madhapur',
+    address: 'Raheja Park, Building No. 20, Mindspace-Cyberabad Project, Survey No: 64 (part), Madhapur, Hyderabad 500 081, Telangana',
+    city: 'Hyderabad',
+    state: 'Telangana',
+    country: 'India',
+    pincode: '500081',
+    timezone: 'Asia/Kolkata',
+    isHeadquarter: false
+  },
+  {
+    id: 'pune-hinjewadi',
+    name: 'Cognizant Pune Hinjewadi',
+    address: 'Plot No.16, Phase III, Rajiv Gandhi Infotech Park, Hinjawadi, Pune 411 057, Maharashtra',
+    city: 'Pune',
+    state: 'Maharashtra',
+    country: 'India',
+    pincode: '411057',
+    timezone: 'Asia/Kolkata',
+    isHeadquarter: false
+  },
+  {
+    id: 'pune-kharadi',
+    name: 'Cognizant Pune Kharadi',
+    address: '4th Floor, Wing 3, Cluster-B, EON Kharadi SEZ, Survey No. 77, Plot No 1, Kharadi MIDC, Pune 411 014, Maharashtra',
+    city: 'Pune',
+    state: 'Maharashtra',
+    country: 'India',
+    pincode: '411014',
+    timezone: 'Asia/Kolkata',
+    isHeadquarter: false
+  },
+  {
+    id: 'kolkata-saltlake',
+    name: 'Cognizant Kolkata Salt Lake',
+    address: 'Technocomplex, Plot-GN 34/3, Sector V, Salt Lake Electronics Complex, Kolkata 700 091, West Bengal',
+    city: 'Kolkata',
+    state: 'West Bengal',
+    country: 'India',
+    pincode: '700091',
+    timezone: 'Asia/Kolkata',
+    isHeadquarter: false
+  },
+  {
+    id: 'mumbai-navi',
+    name: 'Cognizant Navi Mumbai',
+    address: 'Unit Nos. 701, 702 & 601, SEZ Building No.5 & 9, Mindspace-Airoli, Thane Belapur Road, Navi Mumbai 400 708, Maharashtra',
+    city: 'Navi Mumbai',
+    state: 'Maharashtra',
+    country: 'India',
+    pincode: '400708',
+    timezone: 'Asia/Kolkata',
+    isHeadquarter: false
+  },
+  {
+    id: 'coimbatore-kgisl',
+    name: 'Cognizant Coimbatore Campus',
+    address: 'KGISL-SEZ-FO Special Economic Zone (SEZ), Saravanampatti VIA, Coimbatore North, Keeranatham Village, Coimbatore 641 035, Tamil Nadu',
+    city: 'Coimbatore',
+    state: 'Tamil Nadu',
+    country: 'India',
+    pincode: '641035',
+    timezone: 'Asia/Kolkata',
+    isHeadquarter: false
+  },
+  {
+    id: 'kochi-infopark',
+    name: 'Cognizant Kochi Infopark',
+    address: 'Naveda Campus, Infopark Phase 2 SEZ, Brahmapuram P.O, Kochi 682303, Kerala',
+    city: 'Kochi',
+    state: 'Kerala',
+    country: 'India',
+    pincode: '682303',
+    timezone: 'Asia/Kolkata',
+    isHeadquarter: false
+  },
+  {
+    id: 'noida-sector135',
+    name: 'Cognizant Noida',
+    address: 'Tower 9 & 10, Upper Ground Floor, 1st & 2nd Floor, Building No.10, IT/ITes SEZ, Plot No. 20 & 21, Sector-135, Noida 201 301, Uttar Pradesh',
+    city: 'Noida',
+    state: 'Uttar Pradesh',
+    country: 'India',
+    pincode: '201301',
+    timezone: 'Asia/Kolkata',
+    isHeadquarter: false
+  },
+  {
+    id: 'gurugram-candor',
+    name: 'Cognizant Gurugram',
+    address: 'Building No.3, Candor Gurgaon One, Tikri Village, Sector 48, Gurugram 122 001, Haryana',
+    city: 'Gurugram',
+    state: 'Haryana',
+    country: 'India',
+    pincode: '122001',
+    timezone: 'Asia/Kolkata',
+    isHeadquarter: false
   }
 ];
 
-// Generate sample engineers (representing 3000+ engineers)
+// Generate 150 unique CIS engineers across multiple delivery centers - Updated with real Cognizant locations
 const generateMockEngineers = (): Engineer[] => {
   const engineers: Engineer[] = [];
-  const firstNames = ['Rahul', 'Priya', 'Amit', 'Sneha', 'Vikram', 'Deepika', 'Arjun', 'Kavya', 'Rohit', 'Ananya'];
-  const lastNames = ['Sharma', 'Patel', 'Kumar', 'Singh', 'Reddy', 'Krishnan', 'Mehta', 'Gupta', 'Jain', 'Rao'];
   
-  for (let i = 1; i <= 50; i++) { // Sample of 50 for demo
-    const firstName = firstNames[Math.floor(Math.random() * firstNames.length)];
-    const lastName = lastNames[Math.floor(Math.random() * lastNames.length)];
+  // Comprehensive list of 150+ unique first names
+  const firstNames = [
+    'Aarav', 'Abhay', 'Abhijeet', 'Abhishek', 'Aditya', 'Ajay', 'Akash', 'Akhil', 'Alok', 'Amar',
+    'Amit', 'Amol', 'Anand', 'Anil', 'Anirudh', 'Ankit', 'Anoop', 'Anuj', 'Arjun', 'Arun',
+    'Ashish', 'Ashok', 'Atul', 'Bharat', 'Chandan', 'Deepak', 'Dev', 'Gaurav', 'Harish', 'Harsh',
+    'Hemant', 'Hitesh', 'Jatin', 'Karan', 'Karthik', 'Kishore', 'Krishna', 'Kunal', 'Manoj', 'Manish',
+    'Mohit', 'Mukesh', 'Naveen', 'Nikhil', 'Nitin', 'Pankaj', 'Pradeep', 'Prakash', 'Pranav', 'Rajesh',
+    'Rakesh', 'Ravi', 'Rohit', 'Sachin', 'Sagar', 'Sanjay', 'Santosh', 'Shashi', 'Shubham', 'Sudhir',
+    'Sunil', 'Suresh', 'Tushar', 'Varun', 'Vikash', 'Vikram', 'Vinay', 'Vinod', 'Vishal', 'Vivek',
+    'Aditi', 'Ankita', 'Ananya', 'Archana', 'Asha', 'Bhavana', 'Deepika', 'Divya', 'Geeta', 'Kavya',
+    'Lakshmi', 'Meera', 'Neha', 'Pooja', 'Priya', 'Priyanka', 'Radha', 'Rashmi', 'Rekha', 'Ritu',
+    'Sarita', 'Shilpa', 'Shreya', 'Sneha', 'Sonia', 'Sunita', 'Swati', 'Tanvi', 'Usha', 'Vandana'
+  ];
+  
+  // Comprehensive list of 60+ unique last names
+  const lastNames = [
+    'Agarwal', 'Bansal', 'Bhat', 'Chandra', 'Choudhary', 'Das', 'Desai', 'Garg', 'Gupta', 'Iyer',
+    'Jain', 'Joshi', 'Kapoor', 'Krishnan', 'Kumar', 'Malhotra', 'Mehta', 'Menon', 'Mishra', 'Nair',
+    'Pandey', 'Patel', 'Pillai', 'Prasad', 'Rao', 'Reddy', 'Roy', 'Saha', 'Saxena', 'Sethi',
+    'Shah', 'Sharma', 'Shukla', 'Singh', 'Sinha', 'Soni', 'Srivastava', 'Subramanian', 'Tiwari', 'Trivedi',
+    'Varma', 'Verma', 'Yadav', 'Agnihotri', 'Bhardwaj', 'Chopra', 'Dutta', 'Ghosh', 'Kulkarni', 'Mukherjee',
+    'Narayanan', 'Raman', 'Raghavan', 'Venkatesh', 'Natarajan', 'Sundaram', 'Balasubramanian', 'Chakraborty', 'Bhattacharya', 'Sengupta'
+  ];
+  
+  const infraSkills = [
+    ['Linux Administration', 'Network Monitoring', 'ITIL', 'Incident Management'],
+    ['Windows Server', 'Active Directory', 'PowerShell', 'System Administration'],
+    ['Oracle DBA', 'SQL Server', 'Database Performance', 'Backup & Recovery'],
+    ['AWS', 'Azure', 'Cloud Migration', 'DevOps'],
+    ['Security Operations', 'SIEM', 'Vulnerability Assessment', 'Compliance'],
+    ['ServiceNow', 'ITSM', 'Ticket Management', 'Customer Service'],
+    ['VMware', 'Hyper-V', 'Virtualization', 'Infrastructure Design'],
+    ['Cisco Networking', 'Firewall Management', 'VPN', 'Network Security'],
+    ['Monitoring Tools', 'Nagios', 'Zabbix', 'Performance Tuning'],
+    ['Backup Solutions', 'Disaster Recovery', 'Business Continuity', 'Data Protection']
+  ];
+  
+  // Generate 150 unique engineers with no name repetition
+  const usedNames = new Set<string>();
+  
+  for (let i = 1; i <= 150; i++) {
+    let firstName: string;
+    let lastName: string;
+    let fullName: string;
+    
+    // Ensure unique name combinations
+    do {
+      firstName = firstNames[Math.floor(Math.random() * firstNames.length)];
+      lastName = lastNames[Math.floor(Math.random() * lastNames.length)];
+      fullName = `${firstName} ${lastName}`;
+    } while (usedNames.has(fullName));
+    
+    usedNames.add(fullName);
+    
     const team = mockTeams[Math.floor(Math.random() * mockTeams.length)];
     const location = mockLocations[Math.floor(Math.random() * mockLocations.length)];
+    const skillSet = infraSkills[Math.floor(Math.random() * infraSkills.length)];
     
     engineers.push({
-      id: `eng-${i.toString().padStart(3, '0')}`,
-      employeeId: `CTS${(1000 + i).toString()}`,
-      name: `${firstName} ${lastName}`,
+      id: `cis-${i.toString().padStart(3, '0')}`,
+      employeeId: `CTS${(300000 + i).toString()}`,
+      name: fullName,
       email: `${firstName.toLowerCase()}.${lastName.toLowerCase()}@cognizant.com`,
       phone: `+91-${Math.floor(Math.random() * 9000000000) + 1000000000}`,
       team,
       department: mockDepartments.find(d => d.teamIds.includes(team.id)) || mockDepartments[0],
       location,
-      skills: ['React', 'Node.js', 'AWS', 'Docker'].slice(0, Math.floor(Math.random() * 4) + 1),
+      skills: skillSet.slice(0, Math.floor(Math.random() * 3) + 2),
       shiftHistory: [],
-      isTeamLead: i <= 4,
-      isOnCall: Math.random() > 0.8,
+      isTeamLead: i <= 8, // 8 team leads for 150 engineers
+      isOnCall: Math.random() > 0.87, // ~13% on-call engineers
       status: 'active',
       joinDate: '2023-01-01',
-      certifications: ['AWS Certified', 'Azure Fundamentals'].slice(0, Math.floor(Math.random() * 2) + 1),
-      experience: Math.floor(Math.random() * 15) + 1
+      certifications: [
+        'ITIL Foundation', 'CompTIA Network+', 'AWS Solutions Architect', 
+        'Microsoft Azure Admin', 'Oracle DBA', 'Cisco CCNA', 'VMware VCP',
+        'Microsoft MCSA', 'Red Hat Certified', 'CompTIA Security+'
+      ].slice(0, Math.floor(Math.random() * 3) + 1),
+      experience: Math.floor(Math.random() * 12) + 2
     });
   }
   
@@ -204,8 +473,7 @@ const generateMockEngineers = (): Engineer[] => {
 const mockEngineers = generateMockEngineers();
 
 export default function EnterpriseScheduler() {
-  const [currentDate, setCurrentDate] = useState(new Date());
-  const [view, setView] = useState<'calendar' | 'grid' | 'list'>('calendar');
+  const [view, setView] = useState<'grid' | 'list'>('grid');
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [assignments, setAssignments] = useState<ShiftAssignment[]>([]);
   const [showFilters, setShowFilters] = useState(false);
@@ -228,7 +496,7 @@ export default function EnterpriseScheduler() {
   const [searchTerm, setSearchTerm] = useState('');
   const [stats, setStats] = useState({
     totalEngineers: mockEngineers.length,
-    activeShifts: 145,
+    activeShifts: 75, // 5 shifts across 3 weeks = 15 shifts per week
     teamLeads: mockEngineers.filter(e => e.isTeamLead).length,
     onCallMembers: mockEngineers.filter(e => e.isOnCall).length
   });
@@ -238,6 +506,7 @@ export default function EnterpriseScheduler() {
     const generateAssignments = () => {
       const assignments: ShiftAssignment[] = [];
       
+      // Generate assignments for the current week
       for (let day = 0; day < 7; day++) {
         const date = moment().add(day, 'days').format('YYYY-MM-DD');
         
@@ -289,34 +558,15 @@ export default function EnterpriseScheduler() {
     return true;
   });
 
-  const calendarEvents = assignments.map(assignment => {
-    const engineer = mockEngineers.find(e => e.id === assignment.engineerId);
-    const shiftType = mockShiftTypes.find(s => s.id === assignment.shiftTypeId);
-    
-    if (!engineer || !shiftType) return null;
-    
-    const start = moment(`${assignment.date} ${shiftType.startTime}`, 'YYYY-MM-DD HH:mm').toDate();
-    const end = moment(`${assignment.date} ${shiftType.endTime}`, 'YYYY-MM-DD HH:mm').toDate();
-    
-    return {
-      id: assignment.id,
-      title: `${engineer.name} - ${shiftType.name}`,
-      start,
-      end,
-      resource: {
-        engineer,
-        shiftType,
-        assignment
-      }
-    };
-  }).filter(Boolean);
+  
 
   const handleBulkAssign = () => {
     // Bulk assignment logic would go here
-    console.log('Bulk assigning shifts for:', selectedEngineers);
     setShowAssignModal(false);
     setSelectedEngineers([]);
   };
+
+
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100">
@@ -326,9 +576,9 @@ export default function EnterpriseScheduler() {
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-3xl font-bold mb-2 bg-gradient-to-r from-white to-blue-100 bg-clip-text text-transparent">
-                🗓️ Enterprise Shift Scheduler
+                🏢 Cognizant Infrastructure Services
               </h1>
-              <p className="text-blue-100">Manage shifts for {stats.totalEngineers.toLocaleString()}+ engineers across multiple teams and locations</p>
+              <p className="text-blue-100">CIS Shift Management - {stats.totalEngineers.toLocaleString()}+ engineers across 5 shifts and 4 delivery centers</p>
             </div>
             <div className="hidden lg:flex items-center space-x-6">
               <div className="text-center">
@@ -379,15 +629,6 @@ export default function EnterpriseScheduler() {
 
             {/* View Toggle */}
             <div className="flex items-center space-x-2 bg-gray-100 rounded-lg p-1">
-              <button
-                onClick={() => setView('calendar')}
-                className={`flex items-center space-x-2 px-3 py-2 rounded-md transition-colors ${
-                  view === 'calendar' ? 'bg-white shadow-sm text-blue-600' : 'text-gray-600 hover:text-gray-900'
-                }`}
-              >
-                <CalendarIcon className="w-4 h-4" />
-                <span>Calendar</span>
-              </button>
               <button
                 onClick={() => setView('grid')}
                 className={`flex items-center space-x-2 px-3 py-2 rounded-md transition-colors ${
@@ -475,38 +716,6 @@ export default function EnterpriseScheduler() {
         </div>
 
         {/* Main Content */}
-        {view === 'calendar' && (
-          <div className="bg-white/70 backdrop-blur-md rounded-2xl p-6 shadow-xl border border-white/20">
-            <div style={{ height: '600px' }}>
-              <Calendar
-                localizer={localizer}
-                events={calendarEvents}
-                startAccessor="start"
-                endAccessor="end"
-                style={{ height: '100%' }}
-                onSelectEvent={(event) => console.log('Selected event:', event)}
-                onSelectSlot={(slotInfo) => console.log('Selected slot:', slotInfo)}
-                selectable
-                popup
-                views={['month', 'week', 'day']}
-                defaultView="week"
-                step={60}
-                showMultiDayTimes
-                eventPropGetter={(event) => ({
-                  style: {
-                    backgroundColor: event.resource?.shiftType?.color || '#3174ad',
-                    borderRadius: '4px',
-                    opacity: 0.8,
-                    color: 'white',
-                    border: '0px',
-                    display: 'block'
-                  }
-                })}
-              />
-            </div>
-          </div>
-        )}
-
         {view === 'grid' && (
           <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
             {mockShiftTypes.map(shiftType => {
@@ -663,7 +872,7 @@ export default function EnterpriseScheduler() {
           </div>
         )}
 
-        {/* Quick Actions Panel */}
+        {/* CIS Quick Actions Panel */}
         <div className="mt-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <Link 
             to="/scheduler/current-shifts" 
@@ -672,8 +881,8 @@ export default function EnterpriseScheduler() {
             <div className="absolute inset-0 bg-gradient-to-br from-green-400 to-emerald-400 rounded-xl opacity-0 group-hover:opacity-10 transition-opacity"></div>
             <div className="relative p-6 bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl border border-green-200/50 hover:border-green-300/70 transition-all duration-300 hover:-translate-y-1 hover:shadow-lg">
               <Clock className="w-8 h-8 text-green-600 mb-3" />
-              <h3 className="font-bold text-gray-800 mb-2">Current Shifts</h3>
-              <p className="text-sm text-gray-600">View active shifts and real-time status</p>
+              <h3 className="font-bold text-gray-800 mb-2">Live Operations</h3>
+              <p className="text-sm text-gray-600">24/7 shift monitoring and incident tracking</p>
             </div>
           </Link>
 
@@ -684,8 +893,8 @@ export default function EnterpriseScheduler() {
             <div className="absolute inset-0 bg-gradient-to-br from-blue-400 to-indigo-400 rounded-xl opacity-0 group-hover:opacity-10 transition-opacity"></div>
             <div className="relative p-6 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl border border-blue-200/50 hover:border-blue-300/70 transition-all duration-300 hover:-translate-y-1 hover:shadow-lg">
               <Users className="w-8 h-8 text-blue-600 mb-3" />
-              <h3 className="font-bold text-gray-800 mb-2">Engineer Directory</h3>
-              <p className="text-sm text-gray-600">Search and manage engineer profiles</p>
+              <h3 className="font-bold text-gray-800 mb-2">CIS Engineers</h3>
+              <p className="text-sm text-gray-600">Infrastructure team management across DCs</p>
             </div>
           </Link>
 
@@ -696,8 +905,8 @@ export default function EnterpriseScheduler() {
             <div className="absolute inset-0 bg-gradient-to-br from-purple-400 to-violet-400 rounded-xl opacity-0 group-hover:opacity-10 transition-opacity"></div>
             <div className="relative p-6 bg-gradient-to-br from-purple-50 to-violet-50 rounded-xl border border-purple-200/50 hover:border-purple-300/70 transition-all duration-300 hover:-translate-y-1 hover:shadow-lg">
               <Building className="w-8 h-8 text-purple-600 mb-3" />
-              <h3 className="font-bold text-gray-800 mb-2">Admin Panel</h3>
-              <p className="text-sm text-gray-600">Manage teams, projects, and bulk operations</p>
+              <h3 className="font-bold text-gray-800 mb-2">Delivery Centers</h3>
+              <p className="text-sm text-gray-600">Manage operations across all locations</p>
             </div>
           </Link>
 
@@ -705,12 +914,14 @@ export default function EnterpriseScheduler() {
             <div className="absolute inset-0 bg-gradient-to-br from-orange-400 to-red-400 rounded-xl opacity-0 group-hover:opacity-10 transition-opacity"></div>
             <div className="relative p-6 bg-gradient-to-br from-orange-50 to-red-50 rounded-xl border border-orange-200/50 hover:border-orange-300/70 transition-all duration-300 hover:-translate-y-1 hover:shadow-lg">
               <Briefcase className="w-8 h-8 text-orange-600 mb-3" />
-              <h3 className="font-bold text-gray-800 mb-2">Projects</h3>
-              <p className="text-sm text-gray-600">Manage project assignments and timelines</p>
+              <h3 className="font-bold text-gray-800 mb-2">Client Projects</h3>
+              <p className="text-sm text-gray-600">Infrastructure service delivery management</p>
             </div>
           </div>
         </div>
       </div>
+
+
 
       {/* Bulk Assignment Modal */}
       {showAssignModal && (

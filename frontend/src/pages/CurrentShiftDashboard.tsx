@@ -94,15 +94,51 @@ const mockTeams = [
 
 const mockLocations = [
   {
-    id: 'hq-blr',
-    name: 'Bangalore HQ',
-    city: 'Bangalore',
+    id: 'chennai-dlf',
+    name: 'Cognizant DLF Chennai',
+    city: 'Chennai',
     timezone: 'Asia/Kolkata'
   },
   {
-    id: 'hyd-campus',
-    name: 'Hyderabad Campus',
+    id: 'chennai-mepz',
+    name: 'Cognizant MEPZ Campus',
+    city: 'Chennai',
+    timezone: 'Asia/Kolkata'
+  },
+  {
+    id: 'bengaluru-manyata',
+    name: 'Cognizant Bengaluru Manyata',
+    city: 'Bengaluru',
+    timezone: 'Asia/Kolkata'
+  },
+  {
+    id: 'hyderabad-gachibowli',
+    name: 'Cognizant Hyderabad Gachibowli',
     city: 'Hyderabad',
+    timezone: 'Asia/Kolkata'
+  },
+  {
+    id: 'pune-hinjewadi',
+    name: 'Cognizant Pune Hinjewadi',
+    city: 'Pune',
+    timezone: 'Asia/Kolkata'
+  },
+  {
+    id: 'kolkata-saltlake',
+    name: 'Cognizant Kolkata Salt Lake',
+    city: 'Kolkata',
+    timezone: 'Asia/Kolkata'
+  },
+  {
+    id: 'mumbai-navi',
+    name: 'Cognizant Navi Mumbai',
+    city: 'Navi Mumbai',
+    timezone: 'Asia/Kolkata'
+  },
+  {
+    id: 'coimbatore-kgisl',
+    name: 'Cognizant Coimbatore Campus',
+    city: 'Coimbatore',
     timezone: 'Asia/Kolkata'
   }
 ];
