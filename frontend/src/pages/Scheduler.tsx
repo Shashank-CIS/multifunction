@@ -15,7 +15,9 @@ import {
   ChevronDown,
   MapPin,
   Briefcase,
-  AlertCircle
+  AlertCircle,
+  CheckCircle,
+  User
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Engineer, ShiftType, ShiftAssignment, Team, Department, Location, Project, SchedulerFilters } from '@/types';
@@ -454,12 +456,23 @@ const generateMockEngineers = (): Engineer[] => {
       location,
       skills: skillSet.slice(0, Math.floor(Math.random() * 3) + 2),
       shiftHistory: [],
+      productionMetrics: {
+        ticketsResolved: Math.floor(Math.random() * 150) + 50,
+        incidentsHandled: Math.floor(Math.random() * 25) + 5,
+        tasksCompleted: Math.floor(Math.random() * 200) + 80,
+        systemUptimeHours: Math.floor(Math.random() * 500) + 200,
+        projectsDelivered: Math.floor(Math.random() * 8) + 2,
+        monthlyTarget: Math.floor(Math.random() * 50) + 100,
+        lastUpdated: new Date().toISOString(),
+        averageResolutionTime: Math.round((Math.random() * 8 + 2) * 10) / 10,
+        customerSatisfactionRating: Math.round((Math.random() * 1.5 + 3.5) * 10) / 10
+      },
       isTeamLead: i <= 8, // 8 team leads for 150 engineers
       isOnCall: Math.random() > 0.87, // ~13% on-call engineers
       status: 'active',
       joinDate: '2023-01-01',
       certifications: [
-        'ITIL Foundation', 'CompTIA Network+', 'AWS Solutions Architect', 
+        'ITIL Foundation', 'CompTIA Network+', 'AWS Solutions Architect',
         'Microsoft Azure Admin', 'Oracle DBA', 'Cisco CCNA', 'VMware VCP',
         'Microsoft MCSA', 'Red Hat Certified', 'CompTIA Security+'
       ].slice(0, Math.floor(Math.random() * 3) + 1),
@@ -569,359 +582,284 @@ export default function EnterpriseScheduler() {
 
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100">
-      {/* Enhanced Header */}
-      <div className="bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-700 text-white shadow-2xl">
-        <div className="p-6 max-w-7xl mx-auto">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-bold mb-2 bg-gradient-to-r from-white to-blue-100 bg-clip-text text-transparent">
-                🏢 Cognizant Infrastructure Services
-              </h1>
-              <p className="text-blue-100">CIS Shift Management - {stats.totalEngineers.toLocaleString()}+ engineers across 5 shifts and 4 delivery centers</p>
+    <div className="p-6 max-w-7xl mx-auto">
+      {/* Header */}
+      <div className="flex items-center justify-between mb-8">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">Shift Scheduler</h1>
+          <p className="text-gray-600">Manage your CIS team schedules with precision</p>
+        </div>
+        <button className="btn btn-primary">
+          <Plus className="w-4 h-4 mr-2" />
+          Create Shift
+        </button>
+      </div>
+
+      {/* Quick Stats */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+        <div className="card">
+          <div className="flex items-center">
+            <div className="p-3 bg-blue-100 rounded-lg">
+              <Clock className="w-6 h-6 text-blue-600" />
             </div>
-            <div className="hidden lg:flex items-center space-x-6">
-              <div className="text-center">
-                <div className="text-2xl font-bold">{stats.activeShifts}</div>
-                <div className="text-sm text-blue-200">Active Shifts</div>
-              </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold">{stats.teamLeads}</div>
-                <div className="text-sm text-blue-200">Team Leads</div>
-              </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold">{stats.onCallMembers}</div>
-                <div className="text-sm text-blue-200">On-Call</div>
-              </div>
+            <div className="ml-4">
+              <h3 className="text-sm font-medium text-gray-500">Active Shifts</h3>
+              <p className="text-2xl font-semibold text-gray-900">{mockShiftTypes.filter(s => s.isOvernight).length}</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="card">
+          <div className="flex items-center">
+            <div className="p-3 bg-green-100 rounded-lg">
+              <Users className="w-6 h-6 text-green-600" />
+            </div>
+            <div className="ml-4">
+              <h3 className="text-sm font-medium text-gray-500">Engineers on Duty</h3>
+              <p className="text-2xl font-semibold text-gray-900">{mockEngineers.filter(e => e.isOnCall).length}</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="card">
+          <div className="flex items-center">
+            <div className="p-3 bg-purple-100 rounded-lg">
+              <MapPin className="w-6 h-6 text-purple-600" />
+            </div>
+            <div className="ml-4">
+              <h3 className="text-sm font-medium text-gray-500">Total Locations</h3>
+              <p className="text-2xl font-semibold text-gray-900">{mockLocations.length}</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="card">
+          <div className="flex items-center">
+            <div className="p-3 bg-yellow-100 rounded-lg">
+              <CheckCircle className="w-6 h-6 text-yellow-600" />
+            </div>
+            <div className="ml-4">
+              <h3 className="text-sm font-medium text-gray-500">Available Engineers</h3>
+              <p className="text-2xl font-semibold text-gray-900">{mockEngineers.filter(e => e.status === 'active').length}</p>
             </div>
           </div>
         </div>
       </div>
 
-      <div className="p-6 max-w-7xl mx-auto">
-        {/* Control Panel */}
-        <div className="bg-white/70 backdrop-blur-md rounded-2xl p-6 shadow-xl border border-white/20 mb-6">
-          <div className="flex flex-wrap items-center justify-between gap-4">
-            {/* Search and Filters */}
-            <div className="flex items-center space-x-4 flex-1">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                <input
-                  type="text"
-                  placeholder="Search engineers..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-              </div>
-              
-              <button
-                onClick={() => setShowFilters(!showFilters)}
-                className={`flex items-center space-x-2 px-4 py-2 rounded-lg border transition-colors ${
-                  showFilters ? 'bg-blue-50 border-blue-300 text-blue-700' : 'border-gray-300 hover:bg-gray-50'
-                }`}
+      {/* Filters */}
+      <div className="card mb-8">
+        <h2 className="text-xl font-semibold text-gray-900 mb-6">Schedule Management</h2>
+        
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+          {/* Filters */}
+          <div className="lg:col-span-3 grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <label className="block text-gray-700 text-sm font-medium mb-2">View</label>
+              <select 
+                value={view} 
+                onChange={(e) => setView(e.target.value as any)}
+                className="input w-full"
               >
-                <Filter className="w-4 h-4" />
-                <span>Filters</span>
-                <ChevronDown className={`w-4 h-4 transition-transform ${showFilters ? 'rotate-180' : ''}`} />
-              </button>
+                <option value="grid">Grid View</option>
+                <option value="list">List View</option>
+              </select>
             </div>
+            
+            <div>
+              <label className="block text-gray-700 text-sm font-medium mb-2">Team</label>
+              <select 
+                value={filters.teams.length === 0 ? '' : filters.teams[0]} 
+                onChange={(e) => setFilters(prev => ({ ...prev, teams: [e.target.value] }))}
+                className="input w-full"
+              >
+                <option value="">All Teams</option>
+                {mockTeams.map(team => (
+                  <option key={team.id} value={team.id}>{team.name}</option>
+                ))}
+              </select>
+            </div>
+            
+            <div>
+              <label className="block text-gray-700 text-sm font-medium mb-2">Location</label>
+              <select 
+                value={filters.locations.length === 0 ? '' : filters.locations[0]} 
+                onChange={(e) => setFilters(prev => ({ ...prev, locations: [e.target.value] }))}
+                className="input w-full"
+              >
+                <option value="">All Locations</option>
+                {mockLocations.map(location => (
+                  <option key={location.id} value={location.id}>{location.name}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+          
+          {/* Action Button */}
+          <div className="flex items-end">
+            <button className="btn btn-primary w-full">
+              <Plus className="w-4 h-4 mr-2" />
+              Create Shift
+            </button>
+          </div>
+        </div>
+      </div>
 
-            {/* View Toggle */}
-            <div className="flex items-center space-x-2 bg-gray-100 rounded-lg p-1">
+      {/* Engineers Grid/List */}
+      <div className="card">
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-xl font-semibold text-gray-900">Engineers Schedule</h2>
+          <div className="flex items-center space-x-2">
+            <button
+              onClick={() => setShowAssignModal(true)}
+              disabled={selectedEngineers.length === 0}
+              className="btn btn-secondary disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Bulk Assign
+            </button>
+            <div className="flex rounded-lg border border-gray-300 p-1">
               <button
                 onClick={() => setView('grid')}
-                className={`flex items-center space-x-2 px-3 py-2 rounded-md transition-colors ${
-                  view === 'grid' ? 'bg-white shadow-sm text-blue-600' : 'text-gray-600 hover:text-gray-900'
+                className={`px-3 py-1 rounded text-sm transition-colors ${
+                  view === 'grid' 
+                    ? 'bg-blue-600 text-white' 
+                    : 'text-gray-600 hover:text-gray-900'
                 }`}
               >
-                <Grid className="w-4 h-4" />
-                <span>Grid</span>
+                Grid
               </button>
               <button
                 onClick={() => setView('list')}
-                className={`flex items-center space-x-2 px-3 py-2 rounded-md transition-colors ${
-                  view === 'list' ? 'bg-white shadow-sm text-blue-600' : 'text-gray-600 hover:text-gray-900'
+                className={`px-3 py-1 rounded text-sm transition-colors ${
+                  view === 'list' 
+                    ? 'bg-blue-600 text-white' 
+                    : 'text-gray-600 hover:text-gray-900'
                 }`}
               >
-                <List className="w-4 h-4" />
-                <span>List</span>
-              </button>
-            </div>
-
-            {/* Action Buttons */}
-            <div className="flex items-center space-x-3">
-              <button
-                onClick={() => setShowAssignModal(true)}
-                className="flex items-center space-x-2 px-4 py-2 bg-gradient-to-r from-blue-500 to-indigo-500 text-white rounded-lg hover:from-blue-600 hover:to-indigo-600 transition-all duration-300 hover:shadow-lg"
-              >
-                <Plus className="w-4 h-4" />
-                <span>Assign Shifts</span>
-              </button>
-              
-              <button className="flex items-center space-x-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
-                <Upload className="w-4 h-4" />
-                <span>Import CSV</span>
-              </button>
-              
-              <button className="flex items-center space-x-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
-                <Download className="w-4 h-4" />
-                <span>Export</span>
+                List
               </button>
             </div>
           </div>
+        </div>
 
-          {/* Advanced Filters Panel */}
-          {showFilters && (
-            <div className="mt-6 pt-6 border-t border-gray-200">
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Teams</label>
-                  <select multiple className="w-full border border-gray-300 rounded-lg p-2 h-24">
-                    {mockTeams.map(team => (
-                      <option key={team.id} value={team.id}>{team.name}</option>
-                    ))}
-                  </select>
+        {view === 'grid' ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {mockEngineers.slice(0, 12).map(engineer => (
+              <div key={engineer.id} className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center">
+                    <input
+                      type="checkbox"
+                      checked={selectedEngineers.includes(engineer.id)}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setSelectedEngineers(prev => [...prev, engineer.id]);
+                        } else {
+                          setSelectedEngineers(prev => prev.filter(id => id !== engineer.id));
+                        }
+                      }}
+                      className="mr-3"
+                    />
+                    <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                      <User className="w-5 h-5 text-blue-600" />
+                    </div>
+                  </div>
+                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                    engineer.isOnCall 
+                      ? 'bg-green-100 text-green-800' 
+                      : 'bg-gray-100 text-gray-800'
+                  }`}>
+                    {engineer.isOnCall ? 'On Call' : 'Available'}
+                  </span>
                 </div>
                 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Departments</label>
-                  <select multiple className="w-full border border-gray-300 rounded-lg p-2 h-24">
-                    {mockDepartments.map(dept => (
-                      <option key={dept.id} value={dept.id}>{dept.name}</option>
-                    ))}
-                  </select>
-                </div>
+                <h3 className="font-semibold text-gray-900 mb-1">{engineer.name}</h3>
+                <p className="text-sm text-gray-600 mb-2">{engineer.team.name}</p>
+                <p className="text-xs text-gray-500">{engineer.location.name}</p>
                 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Locations</label>
-                  <select multiple className="w-full border border-gray-300 rounded-lg p-2 h-24">
-                    {mockLocations.map(location => (
-                      <option key={location.id} value={location.id}>{location.name}</option>
-                    ))}
-                  </select>
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Shift Types</label>
-                  <select multiple className="w-full border border-gray-300 rounded-lg p-2 h-24">
-                    {mockShiftTypes.map(shift => (
-                      <option key={shift.id} value={shift.id}>{shift.name}</option>
-                    ))}
-                  </select>
+                <div className="mt-3 flex items-center justify-between">
+                  <span className="text-xs text-gray-500">
+                    {engineer.skills.length} skills
+                  </span>
+                  <button className="text-blue-600 hover:text-blue-700 text-sm">
+                    View Schedule
+                  </button>
                 </div>
               </div>
-            </div>
-          )}
-        </div>
-
-        {/* Main Content */}
-        {view === 'grid' && (
-          <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
-            {mockShiftTypes.map(shiftType => {
-              const shiftAssignments = assignments.filter(a => a.shiftTypeId === shiftType.id);
-              const currentStaff = shiftAssignments.length;
-              const utilizationPercent = (currentStaff / shiftType.maximumStaff) * 100;
-              
-              return (
-                <div key={shiftType.id} className="bg-white/70 backdrop-blur-md rounded-2xl p-6 shadow-xl border border-white/20">
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center space-x-3">
-                      <div 
-                        className="w-4 h-4 rounded-full"
-                        style={{ backgroundColor: shiftType.color }}
-                      ></div>
-                      <div>
-                        <h3 className="font-bold text-lg">{shiftType.name}</h3>
-                        <p className="text-sm text-gray-600">{shiftType.startTime} - {shiftType.endTime}</p>
+            ))}
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <input
+                      type="checkbox"
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setSelectedEngineers(mockEngineers.slice(0, 12).map(e => e.id));
+                        } else {
+                          setSelectedEngineers([]);
+                        }
+                      }}
+                    />
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Engineer</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Team</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Location</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {mockEngineers.slice(0, 12).map(engineer => (
+                  <tr key={engineer.id} className="hover:bg-gray-50">
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <input
+                        type="checkbox"
+                        checked={selectedEngineers.includes(engineer.id)}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setSelectedEngineers(prev => [...prev, engineer.id]);
+                          } else {
+                            setSelectedEngineers(prev => prev.filter(id => id !== engineer.id));
+                          }
+                        }}
+                      />
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex items-center">
+                        <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center mr-3">
+                          <User className="w-4 h-4 text-blue-600" />
+                        </div>
+                        <div>
+                          <div className="text-sm font-medium text-gray-900">{engineer.name}</div>
+                          <div className="text-sm text-gray-500">{engineer.email}</div>
+                        </div>
                       </div>
-                    </div>
-                    <Clock className="w-5 h-5 text-gray-400" />
-                  </div>
-                  
-                  <div className="space-y-3">
-                    <div className="flex justify-between text-sm">
-                      <span>Staffing:</span>
-                      <span className={`font-medium ${
-                        currentStaff < shiftType.minimumStaff ? 'text-red-600' : 
-                        currentStaff > shiftType.maximumStaff ? 'text-orange-600' : 'text-green-600'
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{engineer.team.name}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{engineer.location.name}</td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                        engineer.isOnCall 
+                          ? 'bg-green-100 text-green-800' 
+                          : 'bg-gray-100 text-gray-800'
                       }`}>
-                        {currentStaff} / {shiftType.maximumStaff}
+                        {engineer.isOnCall ? 'On Call' : 'Available'}
                       </span>
-                    </div>
-                    
-                    <div className="w-full bg-gray-200 rounded-full h-2">
-                      <div 
-                        className={`h-2 rounded-full transition-all duration-300 ${
-                          utilizationPercent < 50 ? 'bg-red-500' :
-                          utilizationPercent < 80 ? 'bg-yellow-500' : 'bg-green-500'
-                        }`}
-                        style={{ width: `${Math.min(utilizationPercent, 100)}%` }}
-                      ></div>
-                    </div>
-                    
-                    <div className="flex justify-between text-xs text-gray-500">
-                      <span>Min: {shiftType.minimumStaff}</span>
-                      <span>Max: {shiftType.maximumStaff}</span>
-                    </div>
-                    
-                    {currentStaff < shiftType.minimumStaff && (
-                      <div className="flex items-center space-x-2 text-red-600 text-sm">
-                        <AlertCircle className="w-4 h-4" />
-                        <span>Understaffed by {shiftType.minimumStaff - currentStaff}</span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-
-        {view === 'list' && (
-          <div className="bg-white/70 backdrop-blur-md rounded-2xl shadow-xl border border-white/20">
-            <div className="p-6 border-b border-gray-200">
-              <h3 className="text-lg font-bold">Engineer Directory</h3>
-              <p className="text-gray-600">Showing {filteredEngineers.length} of {mockEngineers.length} engineers</p>
-            </div>
-            
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="bg-gray-50/70">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      <input type="checkbox" className="rounded" />
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Engineer</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Team</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Department</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Location</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                      <button className="text-blue-600 hover:text-blue-700 mr-3">View</button>
+                      <button className="text-indigo-600 hover:text-indigo-700">Assign</button>
+                    </td>
                   </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-200">
-                  {filteredEngineers.slice(0, 20).map((engineer) => (
-                    <tr key={engineer.id} className="hover:bg-gray-50/70 transition-colors">
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <input 
-                          type="checkbox" 
-                          className="rounded"
-                          checked={selectedEngineers.includes(engineer.id)}
-                          onChange={(e) => {
-                            if (e.target.checked) {
-                              setSelectedEngineers([...selectedEngineers, engineer.id]);
-                            } else {
-                              setSelectedEngineers(selectedEngineers.filter(id => id !== engineer.id));
-                            }
-                          }}
-                        />
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="flex items-center">
-                          <div className="flex-shrink-0 h-10 w-10">
-                            <div className="h-10 w-10 rounded-full bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center text-white font-medium">
-                              {engineer.name.split(' ').map(n => n[0]).join('')}
-                            </div>
-                          </div>
-                          <div className="ml-4">
-                            <div className="text-sm font-medium text-gray-900 flex items-center space-x-2">
-                              <span>{engineer.name}</span>
-                              {engineer.isTeamLead && <UserCheck className="w-4 h-4 text-blue-500" />}
-                              {engineer.isOnCall && <AlertCircle className="w-4 h-4 text-red-500" />}
-                            </div>
-                            <div className="text-sm text-gray-500">{engineer.employeeId}</div>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span 
-                          className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium text-white"
-                          style={{ backgroundColor: engineer.team.color }}
-                        >
-                          {engineer.team.name}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {engineer.department.name}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="flex items-center space-x-1 text-sm text-gray-900">
-                          <MapPin className="w-4 h-4 text-gray-400" />
-                          <span>{engineer.location.city}</span>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                          engineer.status === 'active' ? 'bg-green-100 text-green-800' :
-                          engineer.status === 'on-leave' ? 'bg-yellow-100 text-yellow-800' :
-                          'bg-gray-100 text-gray-800'
-                        }`}>
-                          {engineer.status}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                        <button className="text-blue-600 hover:text-blue-900 mr-3">View</button>
-                        <button className="text-indigo-600 hover:text-indigo-900">Assign</button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                ))}
+              </tbody>
+            </table>
           </div>
         )}
-
-        {/* CIS Quick Actions Panel */}
-        <div className="mt-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <Link 
-            to="/scheduler/current-shifts" 
-            className="group relative overflow-hidden"
-          >
-            <div className="absolute inset-0 bg-gradient-to-br from-green-400 to-emerald-400 rounded-xl opacity-0 group-hover:opacity-10 transition-opacity"></div>
-            <div className="relative p-6 bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl border border-green-200/50 hover:border-green-300/70 transition-all duration-300 hover:-translate-y-1 hover:shadow-lg">
-              <Clock className="w-8 h-8 text-green-600 mb-3" />
-              <h3 className="font-bold text-gray-800 mb-2">Live Operations</h3>
-              <p className="text-sm text-gray-600">24/7 shift monitoring and incident tracking</p>
-            </div>
-          </Link>
-
-          <Link 
-            to="/scheduler/engineers" 
-            className="group relative overflow-hidden"
-          >
-            <div className="absolute inset-0 bg-gradient-to-br from-blue-400 to-indigo-400 rounded-xl opacity-0 group-hover:opacity-10 transition-opacity"></div>
-            <div className="relative p-6 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl border border-blue-200/50 hover:border-blue-300/70 transition-all duration-300 hover:-translate-y-1 hover:shadow-lg">
-              <Users className="w-8 h-8 text-blue-600 mb-3" />
-              <h3 className="font-bold text-gray-800 mb-2">CIS Engineers</h3>
-              <p className="text-sm text-gray-600">Infrastructure team management across DCs</p>
-            </div>
-          </Link>
-
-          <Link 
-            to="/scheduler/admin" 
-            className="group relative overflow-hidden"
-          >
-            <div className="absolute inset-0 bg-gradient-to-br from-purple-400 to-violet-400 rounded-xl opacity-0 group-hover:opacity-10 transition-opacity"></div>
-            <div className="relative p-6 bg-gradient-to-br from-purple-50 to-violet-50 rounded-xl border border-purple-200/50 hover:border-purple-300/70 transition-all duration-300 hover:-translate-y-1 hover:shadow-lg">
-              <Building className="w-8 h-8 text-purple-600 mb-3" />
-              <h3 className="font-bold text-gray-800 mb-2">Delivery Centers</h3>
-              <p className="text-sm text-gray-600">Manage operations across all locations</p>
-            </div>
-          </Link>
-
-          <div className="group relative overflow-hidden">
-            <div className="absolute inset-0 bg-gradient-to-br from-orange-400 to-red-400 rounded-xl opacity-0 group-hover:opacity-10 transition-opacity"></div>
-            <div className="relative p-6 bg-gradient-to-br from-orange-50 to-red-50 rounded-xl border border-orange-200/50 hover:border-orange-300/70 transition-all duration-300 hover:-translate-y-1 hover:shadow-lg">
-              <Briefcase className="w-8 h-8 text-orange-600 mb-3" />
-              <h3 className="font-bold text-gray-800 mb-2">Client Projects</h3>
-              <p className="text-sm text-gray-600">Infrastructure service delivery management</p>
-            </div>
-          </div>
-        </div>
       </div>
-
-
 
       {/* Bulk Assignment Modal */}
       {showAssignModal && (

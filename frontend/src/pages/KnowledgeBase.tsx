@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Search, 
   Plus, 
@@ -10,7 +10,9 @@ import {
   Clock,
   User,
   Tag,
-  Lightbulb
+  Lightbulb,
+  FolderOpen,
+  RefreshCw
 } from 'lucide-react';
 import { KnowledgeArticle, AISearch } from '../types';
 
@@ -48,273 +50,183 @@ const mockArticles: KnowledgeArticle[] = [
   },
   {
     id: '3',
-    title: 'API Rate Limiting Best Practices',
-    content: 'Best practices for implementing API rate limiting:\n\n1. Use appropriate rate limiting algorithms (sliding window, token bucket)\n2. Provide clear error messages with retry-after headers\n3. Implement graceful degradation\n4. Monitor and alert on rate limit violations\n5. Consider different limits for different user tiers',
-    summary: 'Guidelines for implementing effective API rate limiting',
-    category: 'API',
-    tags: ['api', 'rate limiting', 'best practices'],
+    title: 'Setting Up VPN Access',
+    content: 'VPN setup instructions for remote access:\n\n1. Download the VPN client\n2. Import the configuration file\n3. Enter your credentials\n4. Connect to the VPN\n5. Verify connection status\n\nContact IT support if you encounter certificate errors.',
+    summary: 'Complete guide for VPN configuration and troubleshooting',
+    category: 'Network',
+    tags: ['vpn', 'remote access', 'security'],
     author: 'Mike Johnson',
     createdAt: '2023-10-25T09:15:00Z',
     updatedAt: '2023-10-25T09:15:00Z',
-    views: 156,
-    helpful: 15,
-    notHelpful: 0,
+    views: 312,
+    helpful: 28,
+    notHelpful: 3,
     status: 'published'
   }
 ];
 
-const categories = [
-  'All Categories',
-  'Account Management',
-  'Database',
-  'API',
-  'Security',
-  'Network',
-  'Deployment'
+const mockCategories = [
+  { id: '1', name: 'Infrastructure' },
+  { id: '2', name: 'Security' },
+  { id: '3', name: 'Database' },
+  { id: '4', name: 'Networking' },
+  { id: '5', name: 'Account Management' },
+  { id: '6', name: 'Troubleshooting' },
+  { id: '7', name: 'Deployment' }
 ];
 
-export default function KnowledgeBase() {
+const KnowledgeBase: React.FC = () => {
   const [articles, setArticles] = useState<KnowledgeArticle[]>(mockArticles);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('All Categories');
-  const [selectedArticle, setSelectedArticle] = useState<KnowledgeArticle | null>(null);
-  const [showCreateForm, setShowCreateForm] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('');
   const [aiSuggestions, setAiSuggestions] = useState<string[]>([]);
-  const [loading, setLoading] = useState(false);
 
   // Filter articles based on search and category
   const filteredArticles = articles.filter(article => {
-    const matchesSearch = !searchQuery || 
-      article.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      article.content.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      article.tags.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase()));
+    const matchesSearch = article.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         article.content.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         article.tags.some(tag => tag.toLowerCase().includes(searchTerm.toLowerCase()));
     
-    const matchesCategory = selectedCategory === 'All Categories' || 
-      article.category === selectedCategory;
-
+    const matchesCategory = selectedCategory === '' || article.category === selectedCategory;
+    
     return matchesSearch && matchesCategory;
   });
 
-  // Mock AI suggestions
+  // Generate AI suggestions based on search term
   useEffect(() => {
-    if (searchQuery.length > 2) {
-      setLoading(true);
-      // Simulate API call
-      setTimeout(() => {
-        const suggestions = [
-          'password reset procedure',
-          'database connection issues',
-          'API authentication methods',
-          'troubleshooting network connectivity'
-        ].filter(suggestion => 
-          suggestion.toLowerCase().includes(searchQuery.toLowerCase())
-        );
-        setAiSuggestions(suggestions);
-        setLoading(false);
-      }, 500);
+    if (searchTerm.length > 2) {
+      const suggestions = [
+        'password reset procedure',
+        'database troubleshooting',
+        'vpn setup guide',
+        'user management',
+        'network configuration'
+      ].filter(suggestion => 
+        suggestion.toLowerCase().includes(searchTerm.toLowerCase()) &&
+        suggestion !== searchTerm
+      );
+      setAiSuggestions(suggestions.slice(0, 3));
     } else {
       setAiSuggestions([]);
     }
-  }, [searchQuery]);
-
-  const handleVote = (articleId: string, voteType: 'helpful' | 'not-helpful') => {
-    setArticles(prev => prev.map(article => {
-      if (article.id === articleId) {
-        return {
-          ...article,
-          helpful: voteType === 'helpful' ? article.helpful + 1 : article.helpful,
-          notHelpful: voteType === 'not-helpful' ? article.notHelpful + 1 : article.notHelpful
-        };
-      }
-      return article;
-    }));
-  };
-
-  const ArticleCard = ({ article }: { article: KnowledgeArticle }) => (
-    <div 
-      className="card hover:shadow-md transition-shadow cursor-pointer"
-      onClick={() => setSelectedArticle(article)}
-    >
-      <div className="flex items-start justify-between mb-3">
-        <h3 className="text-lg font-semibold text-gray-900 line-clamp-2">
-          {article.title}
-        </h3>
-        <span className="badge badge-primary ml-2 whitespace-nowrap">
-          {article.category}
-        </span>
-      </div>
-      
-      <p className="text-gray-600 text-sm mb-4 line-clamp-3">
-        {article.summary}
-      </p>
-
-      <div className="flex flex-wrap gap-1 mb-4">
-        {article.tags.map(tag => (
-          <span key={tag} className="inline-flex items-center px-2 py-1 text-xs bg-gray-100 text-gray-700 rounded">
-            <Tag className="w-3 h-3 mr-1" />
-            {tag}
-          </span>
-        ))}
-      </div>
-
-      <div className="flex items-center justify-between text-sm text-gray-500">
-        <div className="flex items-center space-x-4">
-          <span className="flex items-center">
-            <User className="w-4 h-4 mr-1" />
-            {article.author}
-          </span>
-          <span className="flex items-center">
-            <Eye className="w-4 h-4 mr-1" />
-            {article.views}
-          </span>
-        </div>
-        <div className="flex items-center space-x-2">
-          <span className="flex items-center text-green-600">
-            <ThumbsUp className="w-4 h-4 mr-1" />
-            {article.helpful}
-          </span>
-          <span className="flex items-center text-red-600">
-            <ThumbsDown className="w-4 h-4 mr-1" />
-            {article.notHelpful}
-          </span>
-        </div>
-      </div>
-    </div>
-  );
-
-  const ArticleDetail = ({ article }: { article: KnowledgeArticle }) => (
-    <div className="card max-w-4xl mx-auto">
-      <div className="flex items-center justify-between mb-6">
-        <button
-          onClick={() => setSelectedArticle(null)}
-          className="btn btn-ghost"
-        >
-          ← Back to Articles
-        </button>
-        <span className="badge badge-primary">{article.category}</span>
-      </div>
-
-      <h1 className="text-3xl font-bold text-gray-900 mb-4">{article.title}</h1>
-      
-      <div className="flex items-center space-x-6 text-sm text-gray-500 mb-6">
-        <span className="flex items-center">
-          <User className="w-4 h-4 mr-1" />
-          {article.author}
-        </span>
-        <span className="flex items-center">
-          <Clock className="w-4 h-4 mr-1" />
-          {new Date(article.createdAt).toLocaleDateString()}
-        </span>
-        <span className="flex items-center">
-          <Eye className="w-4 h-4 mr-1" />
-          {article.views} views
-        </span>
-      </div>
-
-      <div className="prose max-w-none mb-8">
-        {article.content.split('\n').map((paragraph, index) => (
-          <p key={index} className="mb-4 text-gray-700 leading-relaxed">
-            {paragraph}
-          </p>
-        ))}
-      </div>
-
-      <div className="flex flex-wrap gap-2 mb-6">
-        {article.tags.map(tag => (
-          <span key={tag} className="badge bg-gray-100 text-gray-700">
-            <Tag className="w-3 h-3 mr-1" />
-            {tag}
-          </span>
-        ))}
-      </div>
-
-      <div className="border-t pt-6">
-        <h3 className="text-lg font-semibold mb-4">Was this helpful?</h3>
-        <div className="flex items-center space-x-4">
-          <button
-            onClick={() => handleVote(article.id, 'helpful')}
-            className="flex items-center space-x-2 px-4 py-2 bg-green-100 text-green-700 rounded-lg hover:bg-green-200 transition-colors"
-          >
-            <ThumbsUp className="w-4 h-4" />
-            <span>Yes ({article.helpful})</span>
-          </button>
-          <button
-            onClick={() => handleVote(article.id, 'not-helpful')}
-            className="flex items-center space-x-2 px-4 py-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-colors"
-          >
-            <ThumbsDown className="w-4 h-4" />
-            <span>No ({article.notHelpful})</span>
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-
-  if (selectedArticle) {
-    return (
-      <div className="p-6">
-        <ArticleDetail article={selectedArticle} />
-      </div>
-    );
-  }
+  }, [searchTerm]);
 
   return (
     <div className="p-6 max-w-7xl mx-auto">
       {/* Header */}
-      <div className="flex items-center justify-between mb-8">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Knowledge Base</h1>
-          <p className="text-gray-600">
-            Search our comprehensive library of guides, troubleshooting articles, and best practices.
-          </p>
+      <div className="card mb-8">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">Knowledge Base</h1>
+            <p className="text-gray-600">Search and browse technical documentation</p>
+          </div>
+          <button className="btn btn-primary">
+            <Plus className="w-4 h-4 mr-2" />
+            New Article
+          </button>
         </div>
-        <button
-          onClick={() => setShowCreateForm(true)}
-          className="btn btn-primary"
-        >
-          <Plus className="w-4 h-4 mr-2" />
-          New Article
-        </button>
+      </div>
+
+      {/* Quick Stats */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+        <div className="card">
+          <div className="flex items-center">
+            <div className="p-3 bg-blue-100 rounded-lg">
+              <BookOpen className="w-6 h-6 text-blue-600" />
+            </div>
+            <div className="ml-4">
+              <h3 className="text-sm font-medium text-gray-500">Total Articles</h3>
+              <p className="text-2xl font-semibold text-gray-900">{mockArticles.length}</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="card">
+          <div className="flex items-center">
+            <div className="p-3 bg-green-100 rounded-lg">
+              <ThumbsUp className="w-6 h-6 text-green-600" />
+            </div>
+            <div className="ml-4">
+              <h3 className="text-sm font-medium text-gray-500">Helpful Votes</h3>
+              <p className="text-2xl font-semibold text-gray-900">
+                {mockArticles.reduce((sum, article) => sum + article.helpful, 0)}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="card">
+          <div className="flex items-center">
+            <div className="p-3 bg-purple-100 rounded-lg">
+              <Eye className="w-6 h-6 text-purple-600" />
+            </div>
+            <div className="ml-4">
+              <h3 className="text-sm font-medium text-gray-500">Total Views</h3>
+              <p className="text-2xl font-semibold text-gray-900">
+                {mockArticles.reduce((sum, article) => sum + article.views, 0)}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="card">
+          <div className="flex items-center">
+            <div className="p-3 bg-yellow-100 rounded-lg">
+              <RefreshCw className="w-6 h-6 text-yellow-600" />
+            </div>
+            <div className="ml-4">
+              <h3 className="text-sm font-medium text-gray-500">Categories</h3>
+              <p className="text-2xl font-semibold text-gray-900">{mockCategories.length}</p>
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Search and Filters */}
-      <div className="card mb-6">
-        <div className="flex flex-col lg:flex-row gap-4">
-          {/* Search Bar */}
-          <div className="flex-1 relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-            <input
-              type="text"
-              placeholder="Search articles, guides, and FAQs..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="input pl-10 w-full"
-            />
-            {loading && (
-              <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary-500"></div>
-              </div>
-            )}
+      <div className="card mb-8">
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+          {/* Search */}
+          <div className="lg:col-span-2">
+            <label className="block text-gray-700 text-sm font-medium mb-2">Search Articles</label>
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+              <input
+                type="text"
+                placeholder="Search documentation..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="input pl-10 w-full"
+              />
+            </div>
           </div>
-
+          
           {/* Category Filter */}
-          <div className="flex items-center space-x-2">
-            <Filter className="w-4 h-4 text-gray-400" />
-            <select
-              value={selectedCategory}
+          <div>
+            <label className="block text-gray-700 text-sm font-medium mb-2">Category</label>
+            <select 
+              value={selectedCategory} 
               onChange={(e) => setSelectedCategory(e.target.value)}
-              className="input min-w-[200px]"
+              className="input w-full"
             >
-              {categories.map(category => (
-                <option key={category} value={category}>{category}</option>
+              <option value="">All Categories</option>
+              {mockCategories.map(category => (
+                <option key={category.id} value={category.name}>{category.name}</option>
               ))}
             </select>
+          </div>
+          
+          {/* New Article Button */}
+          <div className="flex items-end">
+            <button className="btn btn-primary w-full">
+              <Plus className="w-4 h-4 mr-2" />
+              New Article
+            </button>
           </div>
         </div>
 
         {/* AI Suggestions */}
         {aiSuggestions.length > 0 && (
-          <div className="mt-4 p-4 bg-blue-50 rounded-lg">
+          <div className="mt-6 p-4 bg-blue-50 rounded-lg">
             <div className="flex items-center mb-2">
               <Lightbulb className="w-4 h-4 text-blue-500 mr-2" />
               <span className="text-sm font-medium text-blue-700">AI Suggestions</span>
@@ -323,7 +235,7 @@ export default function KnowledgeBase() {
               {aiSuggestions.map(suggestion => (
                 <button
                   key={suggestion}
-                  onClick={() => setSearchQuery(suggestion)}
+                  onClick={() => setSearchTerm(suggestion)}
                   className="px-3 py-1 text-sm bg-white text-blue-700 rounded border border-blue-200 hover:bg-blue-100 transition-colors"
                 >
                   {suggestion}
@@ -334,24 +246,68 @@ export default function KnowledgeBase() {
         )}
       </div>
 
-      {/* Results */}
-      <div className="mb-6">
-        <div className="flex items-center justify-between mb-4">
+      {/* Articles List */}
+      <div className="card">
+        <div className="flex items-center justify-between mb-6">
           <h2 className="text-xl font-semibold text-gray-900">
-            {searchQuery || selectedCategory !== 'All Categories' 
-              ? `${filteredArticles.length} result${filteredArticles.length !== 1 ? 's' : ''} found`
-              : 'All Articles'
-            }
+            {filteredArticles.length} article{filteredArticles.length !== 1 ? 's' : ''} found
           </h2>
-          <div className="flex items-center space-x-2">
-            <BookOpen className="w-4 h-4 text-gray-400" />
-            <span className="text-sm text-gray-500">{articles.length} total articles</span>
-          </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredArticles.map(article => (
-            <ArticleCard key={article.id} article={article} />
+            <div key={article.id} className="border border-gray-200 rounded-lg p-6 hover:shadow-md transition-shadow">
+              <div className="flex items-start justify-between mb-4">
+                <h3 className="text-lg font-semibold text-gray-900 line-clamp-2">{article.title}</h3>
+                <span className={`ml-2 px-2 py-1 rounded-full text-xs font-medium ${
+                  article.category === 'Infrastructure' ? 'bg-blue-100 text-blue-800' :
+                  article.category === 'Security' ? 'bg-red-100 text-red-800' :
+                  article.category === 'Database' ? 'bg-green-100 text-green-800' :
+                  article.category === 'Networking' ? 'bg-purple-100 text-purple-800' :
+                  'bg-gray-100 text-gray-800'
+                }`}>
+                  {article.category}
+                </span>
+              </div>
+
+              <p className="text-gray-600 text-sm mb-4 line-clamp-3">
+                {article.content.substring(0, 150)}...
+              </p>
+
+              <div className="flex flex-wrap gap-1 mb-4">
+                {article.tags.slice(0, 3).map(tag => (
+                  <span key={tag} className="inline-flex items-center px-2 py-1 text-xs bg-gray-100 text-gray-700 rounded">
+                    {tag}
+                  </span>
+                ))}
+                {article.tags.length > 3 && (
+                  <span className="text-xs text-gray-500">+{article.tags.length - 3} more</span>
+                )}
+              </div>
+
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-4 text-sm text-gray-500">
+                  <span className="flex items-center">
+                    <User className="w-4 h-4 mr-1" />
+                    {article.author}
+                  </span>
+                  <span className="flex items-center">
+                    <Clock className="w-4 h-4 mr-1" />
+                    {Math.max(1, Math.ceil(article.content.split(' ').length / 200))}m read
+                  </span>
+                </div>
+
+                <div className="flex items-center space-x-2">
+                  <span className="flex items-center text-sm text-gray-500">
+                    <Eye className="w-4 h-4 mr-1" />
+                    {article.views}
+                  </span>
+                  <button className="text-blue-600 hover:text-blue-700 text-sm font-medium">
+                    Read more
+                  </button>
+                </div>
+              </div>
+            </div>
           ))}
         </div>
 
@@ -359,13 +315,11 @@ export default function KnowledgeBase() {
           <div className="text-center py-12">
             <BookOpen className="w-16 h-16 text-gray-300 mx-auto mb-4" />
             <h3 className="text-lg font-medium text-gray-900 mb-2">No articles found</h3>
-            <p className="text-gray-500 mb-4">
-              Try adjusting your search terms or browse different categories.
-            </p>
+            <p className="text-gray-500 mb-4">Try adjusting your search criteria or filters</p>
             <button
               onClick={() => {
-                setSearchQuery('');
-                setSelectedCategory('All Categories');
+                setSearchTerm('');
+                setSelectedCategory('');
               }}
               className="btn btn-secondary"
             >
@@ -374,26 +328,8 @@ export default function KnowledgeBase() {
           </div>
         )}
       </div>
-
-      {/* Popular Categories */}
-      <div className="card">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Popular Categories</h3>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          {categories.slice(1).map(category => {
-            const count = articles.filter(a => a.category === category).length;
-            return (
-              <button
-                key={category}
-                onClick={() => setSelectedCategory(category)}
-                className="p-4 border rounded-lg hover:bg-gray-50 transition-colors text-left"
-              >
-                <div className="font-medium text-gray-900">{category}</div>
-                <div className="text-sm text-gray-500">{count} articles</div>
-              </button>
-            );
-          })}
-        </div>
-      </div>
     </div>
   );
-} 
+};
+
+export default KnowledgeBase; 

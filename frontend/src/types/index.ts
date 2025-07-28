@@ -48,6 +48,18 @@ export interface AISearch {
 }
 
 // Enhanced Scheduler Types for Enterprise Scale
+export interface ProductionMetrics {
+  ticketsResolved: number;
+  incidentsHandled: number;
+  tasksCompleted: number;
+  systemUptimeHours: number;
+  projectsDelivered: number;
+  monthlyTarget: number;
+  lastUpdated: string;
+  averageResolutionTime: number; // in hours
+  customerSatisfactionRating: number; // 1-5 scale
+}
+
 export interface Engineer {
   id: string;
   employeeId: string;
@@ -61,6 +73,7 @@ export interface Engineer {
   skills: string[];
   shiftHistory: ShiftAssignment[];
   currentProject?: Project;
+  productionMetrics: ProductionMetrics;
   isTeamLead: boolean;
   isOnCall: boolean;
   status: 'active' | 'inactive' | 'on-leave' | 'terminated';
