@@ -20,19 +20,37 @@ import {
   User,
   Shield,
   Globe,
-  Palette
+  Palette,
+  LogOut
 } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
+import { useAuth } from '../../contexts/AuthContext';
 import Chatbot from '../Chatbot';
 
 const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const location = useLocation();
   const { theme, toggleTheme } = useTheme();
+  const { user, logout, isManager } = useAuth();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [isHovering, setIsHovering] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [showSettingsMenu, setShowSettingsMenu] = useState(false);
+
+  // Get user initials for avatar
+  const getUserInitials = () => {
+    if (!user) return 'U';
+    const names = user.name.split(' ');
+    if (names.length >= 2) {
+      return (names[0][0] + names[names.length - 1][0]).toUpperCase();
+    }
+    return user.name.substring(0, 2).toUpperCase();
+  };
+
+  // Get role badge color
+  const getRoleBadgeColor = () => {
+    return isManager ? 'bg-purple-600' : 'bg-blue-600';
+  };
 
   // Auto-collapse sidebar functionality
   useEffect(() => {
@@ -51,7 +69,8 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const navigation = [
+  // Role-based navigation - Engineers have limited access, Managers see everything
+  const getAllNavigation = () => [
     { name: 'Dashboard', href: '/', icon: Home },
     { name: 'Scheduler', href: '/scheduler', icon: Calendar },
     { name: 'Engineers', href: '/scheduler/engineers', icon: Users },
@@ -62,6 +81,22 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     { name: 'Challenges', href: '/challenges', icon: Trophy },
     { name: 'Production Management', href: '/production', icon: BarChart3 },
   ];
+
+  const getNavigationForRole = () => {
+    const allNav = getAllNavigation();
+    
+    if (isManager) {
+      return allNav; // Managers see all navigation items
+    } else {
+      // Engineers have limited navigation - remove certain admin/management features
+      return allNav.filter(item => 
+        // Engineers can access these features
+        item.name !== 'Engineers' // Hide engineer directory for privacy
+      );
+    }
+  };
+
+  const navigation = getNavigationForRole();
 
   // Mock notifications data
   const notifications = [
@@ -127,12 +162,15 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
           {(!sidebarCollapsed || isHovering) && (
             <div className="border-t border-gray-200 dark:border-gray-700 p-4">
               <div className="flex items-center">
-                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-600 text-white font-medium text-sm">
-                  SG
+                <div className={`flex h-10 w-10 items-center justify-center rounded-full ${getRoleBadgeColor()} text-white font-medium text-sm`}>
+                  {getUserInitials()}
                 </div>
                 <div className="ml-3">
-                  <p className="text-sm font-medium text-gray-900 dark:text-white">Shashankagowda</p>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">CIS Engineer</p>
+                  <p className="text-sm font-medium text-gray-900 dark:text-white">{user?.name}</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                    {isManager ? 'Manager' : 'CIS Engineer'}
+                    {user?.engineerId && ` • ${user.engineerId}`}
+                  </p>
                 </div>
               </div>
             </div>
@@ -146,29 +184,36 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
         <header className="bg-gradient-to-r from-blue-900 to-blue-800 dark:from-blue-900 dark:to-indigo-900 shadow-sm border-b border-blue-700 dark:border-blue-800">
           <div className="px-4 sm:px-6 lg:px-8">
             <div className="flex h-16 items-center justify-between">
-              {/* Mobile menu button */}
-              <button
-                id="menu-button"
-                onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-                className="text-blue-100 hover:text-white focus:outline-none focus:ring-2 focus:ring-blue-300 lg:hidden"
-              >
-                {sidebarCollapsed ? <Menu className="h-6 w-6" /> : <X className="h-6 w-6" />}
-              </button>
+              {/* Left: Cognizant Logo + Name */}
+              <div className="flex items-center space-x-3">
+                {/* Mobile menu button */}
+                <button
+                  id="menu-button"
+                  onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+                  className="text-blue-100 hover:text-white focus:outline-none focus:ring-2 focus:ring-blue-300 lg:hidden mr-3"
+                >
+                  {sidebarCollapsed ? <Menu className="h-6 w-6" /> : <X className="h-6 w-6" />}
+                </button>
+                
+                {/* Cognizant Brand */}
+                <div className="text-white">
+                  <h1 className="text-lg font-bold tracking-wide">Cognizant</h1>
+                  <p className="text-xs text-blue-200 -mt-1">CIS Portal</p>
+                </div>
+              </div>
 
-              {/* Search */}
-              <div className="flex flex-1 items-center justify-center px-2 lg:ml-6 lg:justify-start">
-                <div className="w-full max-w-lg lg:max-w-xs">
-                  <div className="relative">
-                    <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
-                      <Search className="h-5 w-5 text-blue-300" />
-                    </div>
-                    <input
-                      type="text"
-                      placeholder="Search anything..."
-                      autoComplete="off"
-                      className="w-full pl-10 pr-4 py-2 border border-blue-600 dark:border-blue-700 rounded-lg focus:ring-2 focus:ring-blue-300 focus:border-transparent bg-blue-50 dark:bg-blue-800 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400"
-                    />
+              {/* Center: Search */}
+              <div className="hidden lg:flex flex-1 max-w-lg mx-8">
+                <div className="relative w-full">
+                  <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+                    <Search className="h-5 w-5 text-blue-300" />
                   </div>
+                  <input
+                    type="text"
+                    placeholder="Search anything..."
+                    autoComplete="off"
+                    className="w-full pl-10 pr-4 py-2 border border-blue-600 dark:border-blue-700 rounded-lg focus:ring-2 focus:ring-blue-300 focus:border-transparent bg-blue-50 dark:bg-blue-800 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400"
+                  />
                 </div>
               </div>
 
@@ -296,17 +341,37 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
                     className="flex items-center space-x-2 text-blue-100 hover:text-white p-2 rounded-lg transition-colors"
                     title="Profile Menu"
                   >
-                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-600 text-white font-medium text-sm border-2 border-blue-400">
-                      SG
+                    <div className={`flex h-8 w-8 items-center justify-center rounded-full ${getRoleBadgeColor()} text-white font-medium text-sm border-2 ${isManager ? 'border-purple-400' : 'border-blue-400'}`}>
+                      {getUserInitials()}
+                    </div>
+                    <div className="hidden md:block text-left">
+                      <div className="text-sm font-medium">{user?.name}</div>
+                      <div className="text-xs text-blue-200">
+                        {isManager ? 'Manager' : 'Engineer'}
+                        {user?.engineerId && ` (${user.engineerId})`}
+                      </div>
                     </div>
                   </button>
 
                   {/* Profile Dropdown */}
                   {showProfileMenu && (
-                    <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 z-50">
+                    <div className="absolute right-0 mt-2 w-64 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 z-50">
                       <div className="p-4 border-b border-gray-200 dark:border-gray-700">
-                        <p className="text-sm font-medium text-gray-900 dark:text-white">Shashankagowda</p>
-                        <p className="text-xs text-gray-500 dark:text-gray-400">shashankagowda@cognizant.com</p>
+                        <div className="flex items-center space-x-3">
+                          <div className={`flex h-10 w-10 items-center justify-center rounded-full ${getRoleBadgeColor()} text-white font-medium`}>
+                            {getUserInitials()}
+                          </div>
+                          <div>
+                            <p className="text-sm font-medium text-gray-900 dark:text-white">{user?.name}</p>
+                            <p className="text-xs text-gray-500 dark:text-gray-400">{user?.email}</p>
+                            <p className="text-xs font-medium mt-1">
+                              <span className={`px-2 py-1 rounded-full text-white text-xs ${isManager ? 'bg-purple-600' : 'bg-blue-600'}`}>
+                                {isManager ? 'Manager' : 'Engineer'}
+                                {user?.engineerId && ` - ${user.engineerId}`}
+                              </span>
+                            </p>
+                          </div>
+                        </div>
                       </div>
                       <div className="py-2">
                         <Link
@@ -325,12 +390,25 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
                           <Settings className="w-4 h-4 mr-3" />
                           Preferences
                         </Link>
+                        {isManager && (
+                          <Link
+                            to="/admin"
+                            className="flex items-center px-4 py-2 text-sm text-purple-700 dark:text-purple-400 hover:bg-gray-100 dark:hover:bg-gray-700"
+                            onClick={() => setShowProfileMenu(false)}
+                          >
+                            <Shield className="w-4 h-4 mr-3" />
+                            Admin Panel
+                          </Link>
+                        )}
                         <div className="border-t border-gray-200 dark:border-gray-700 my-2"></div>
                         <button
                           className="flex items-center w-full px-4 py-2 text-sm text-red-700 dark:text-red-400 hover:bg-gray-100 dark:hover:bg-gray-700"
-                          onClick={() => setShowProfileMenu(false)}
+                          onClick={() => {
+                            setShowProfileMenu(false);
+                            logout();
+                          }}
                         >
-                          <X className="w-4 h-4 mr-3" />
+                          <LogOut className="w-4 h-4 mr-3" />
                           Sign Out
                         </button>
                       </div>

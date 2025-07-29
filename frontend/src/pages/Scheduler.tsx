@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import moment from 'moment';
+import { useAuth } from '../contexts/AuthContext';
 import { 
   Users, 
   Filter, 
@@ -445,6 +446,31 @@ const generateMockEngineers = (): Engineer[] => {
     const location = mockLocations[Math.floor(Math.random() * mockLocations.length)];
     const skillSet = infraSkills[Math.floor(Math.random() * infraSkills.length)];
     
+    // Determine shift preferences based on specific users
+    let shiftPrefs: any = {
+      preferredShift: ['shift-a', 'shift-b', 'shift-c'][Math.floor(Math.random() * 3)] as 'shift-a' | 'shift-b' | 'shift-c',
+      isFlexibleTiming: Math.random() > 0.7, // 30% have flexible timing
+      weeklyHours: [40, 45, 50][Math.floor(Math.random() * 3)],
+      overtimePreference: ['none', 'limited', 'flexible', 'available'][Math.floor(Math.random() * 4)] as 'none' | 'limited' | 'flexible' | 'available'
+    };
+
+    // Set specific preferences for authenticated users
+    if (fullName === 'Shashankagowda S') {
+      shiftPrefs = {
+        preferredShift: 'shift-a' as 'shift-a',
+        isFlexibleTiming: false,
+        weeklyHours: 50,
+        overtimePreference: 'limited' as 'limited'
+      };
+    } else if (fullName === 'Pradip Shinde') {
+      shiftPrefs = {
+        preferredShift: 'shift-b' as 'shift-b',
+        isFlexibleTiming: true,
+        weeklyHours: 45,
+        overtimePreference: 'flexible' as 'flexible'
+      };
+    }
+
     engineers.push({
       id: `cis-${i.toString().padStart(3, '0')}`,
       employeeId: `CTS${(300000 + i).toString()}`,
@@ -476,7 +502,9 @@ const generateMockEngineers = (): Engineer[] => {
         'Microsoft Azure Admin', 'Oracle DBA', 'Cisco CCNA', 'VMware VCP',
         'Microsoft MCSA', 'Red Hat Certified', 'CompTIA Security+'
       ].slice(0, Math.floor(Math.random() * 3) + 1),
-      experience: Math.floor(Math.random() * 12) + 2
+      experience: Math.floor(Math.random() * 12) + 2,
+      // Shift Preferences
+      ...shiftPrefs
     });
   }
   
@@ -485,13 +513,40 @@ const generateMockEngineers = (): Engineer[] => {
 
 const mockEngineers = generateMockEngineers();
 
+// Function to get updated engineer data with stored preferences
+const getEngineersWithUpdatedPreferences = () => {
+  return mockEngineers.map(engineer => {
+    // Check if we have stored preferences for this engineer
+    const storedPrefs = localStorage.getItem(`shift_prefs_${engineer.employeeId.replace('CTS', '')}`);
+    if (storedPrefs) {
+      try {
+        const prefs = JSON.parse(storedPrefs);
+        return {
+          ...engineer,
+          preferredShift: prefs.preferredShift || engineer.preferredShift,
+          customShiftStart: prefs.shiftStartTime,
+          customShiftEnd: prefs.shiftEndTime,
+          isFlexibleTiming: prefs.isFlexibleTiming !== undefined ? prefs.isFlexibleTiming : engineer.isFlexibleTiming,
+          weeklyHours: prefs.weeklyHours || engineer.weeklyHours,
+          overtimePreference: prefs.overtimePreference || engineer.overtimePreference
+        };
+      } catch (error) {
+        console.error('Error loading stored preferences for engineer:', engineer.employeeId);
+      }
+    }
+    return engineer;
+  });
+};
+
 export default function EnterpriseScheduler() {
+  const { user, isManager } = useAuth();
   const [view, setView] = useState<'grid' | 'list'>('grid');
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [assignments, setAssignments] = useState<ShiftAssignment[]>([]);
   const [showFilters, setShowFilters] = useState(false);
   const [showAssignModal, setShowAssignModal] = useState(false);
   const [selectedEngineers, setSelectedEngineers] = useState<string[]>([]);
+  const [refreshKey, setRefreshKey] = useState(0); // To force re-render when preferences change
   
   const [filters, setFilters] = useState<SchedulerFilters>({
     dateRange: {
@@ -513,6 +568,18 @@ export default function EnterpriseScheduler() {
     teamLeads: mockEngineers.filter(e => e.isTeamLead).length,
     onCallMembers: mockEngineers.filter(e => e.isOnCall).length
   });
+
+  // Listen for preference changes in localStorage
+  useEffect(() => {
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key && e.key.startsWith('shift_prefs_')) {
+        setRefreshKey(prev => prev + 1);
+      }
+    };
+    
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
+  }, []);
 
   // Generate some sample assignments
   useEffect(() => {
@@ -550,7 +617,22 @@ export default function EnterpriseScheduler() {
     generateAssignments();
   }, []);
 
-  const filteredEngineers = mockEngineers.filter(engineer => {
+  // Role-based filtering for Scheduler
+  const getAccessibleEngineers = () => {
+    const updatedEngineers = getEngineersWithUpdatedPreferences();
+    if (isManager) {
+      return updatedEngineers; // Managers can schedule all engineers
+    } else {
+      // Engineers can only view their own schedule and team members
+      return updatedEngineers.filter(engineer => 
+        engineer.employeeId === user?.engineerId || 
+        engineer.id === user?.id ||
+        engineer.team.id === 'production' // Same team only
+      );
+    }
+  };
+
+  const filteredEngineers = getAccessibleEngineers().filter(engineer => {
     if (searchTerm && !engineer.name.toLowerCase().includes(searchTerm.toLowerCase()) && 
         !engineer.employeeId.toLowerCase().includes(searchTerm.toLowerCase())) {
       return false;
@@ -583,64 +665,89 @@ export default function EnterpriseScheduler() {
 
   return (
     <div className="p-6 max-w-7xl mx-auto">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-8">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Shift Scheduler</h1>
-          <p className="text-gray-600">Manage your CIS team schedules with precision</p>
-        </div>
-        <button className="btn btn-primary">
-          <Plus className="w-4 h-4 mr-2" />
-          Create Shift
-        </button>
-      </div>
-
-      {/* Quick Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-        <div className="card">
-          <div className="flex items-center">
-            <div className="p-3 bg-blue-100 rounded-lg">
-              <Clock className="w-6 h-6 text-blue-600" />
+      {/* Header and Stats Section with Background */}
+      <div className="bg-gradient-to-br from-blue-50 to-indigo-100 rounded-xl p-6 mb-8">
+        {/* Header */}
+        <div className="flex items-center justify-between mb-8">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900 mb-2">Shift Scheduler</h1>
+            <p className="text-gray-600">Manage your CIS team schedules with precision</p>
+          </div>
+          
+          {/* My Shift Display */}
+          {user?.engineerId && (
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 min-w-[220px]">
+              <div className="flex justify-between items-center">
+                <span className="text-gray-600 text-sm">My Shift:</span>
+                <span className="font-medium text-indigo-600">
+                  {(() => {
+                    const storedPrefs = localStorage.getItem(`shift_prefs_${user.engineerId}`);
+                    if (storedPrefs) {
+                      try {
+                        const prefs = JSON.parse(storedPrefs);
+                        if (prefs.preferredShift === 'shift-a') return '06:00 - 16:00';
+                        if (prefs.preferredShift === 'shift-b') return '14:00 - 00:00';
+                        if (prefs.preferredShift === 'shift-c') return '22:00 - 08:00';
+                        if (prefs.preferredShift === 'custom') return `${prefs.shiftStartTime || '06:00'} - ${prefs.shiftEndTime || '16:00'}`;
+                      } catch (e) {
+                        // ignore error
+                      }
+                    }
+                    return '06:00 - 16:00';
+                  })()}
+                </span>
+              </div>
             </div>
-            <div className="ml-4">
-              <h3 className="text-sm font-medium text-gray-500">Active Shifts</h3>
-              <p className="text-2xl font-semibold text-gray-900">{mockShiftTypes.filter(s => s.isOvernight).length}</p>
+          )}
+        </div>
+
+        {/* Quick Stats */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+          <div className="card">
+            <div className="flex items-center">
+              <div className="p-3 bg-blue-100 rounded-lg">
+                <Clock className="w-6 h-6 text-blue-600" />
+              </div>
+              <div className="ml-4">
+                <h3 className="text-sm font-medium text-gray-500">Active Shifts</h3>
+                <p className="text-2xl font-semibold text-gray-900">{mockShiftTypes.filter(s => s.isOvernight).length}</p>
+              </div>
             </div>
           </div>
-        </div>
 
-        <div className="card">
-          <div className="flex items-center">
-            <div className="p-3 bg-green-100 rounded-lg">
-              <Users className="w-6 h-6 text-green-600" />
-            </div>
-            <div className="ml-4">
-              <h3 className="text-sm font-medium text-gray-500">Engineers on Duty</h3>
-              <p className="text-2xl font-semibold text-gray-900">{mockEngineers.filter(e => e.isOnCall).length}</p>
+          <div className="card">
+            <div className="flex items-center">
+              <div className="p-3 bg-green-100 rounded-lg">
+                <Users className="w-6 h-6 text-green-600" />
+              </div>
+              <div className="ml-4">
+                <h3 className="text-sm font-medium text-gray-500">Engineers on Duty</h3>
+                <p className="text-2xl font-semibold text-gray-900">{mockEngineers.filter(e => e.isOnCall).length}</p>
+              </div>
             </div>
           </div>
-        </div>
 
-        <div className="card">
-          <div className="flex items-center">
-            <div className="p-3 bg-purple-100 rounded-lg">
-              <MapPin className="w-6 h-6 text-purple-600" />
-            </div>
-            <div className="ml-4">
-              <h3 className="text-sm font-medium text-gray-500">Total Locations</h3>
-              <p className="text-2xl font-semibold text-gray-900">{mockLocations.length}</p>
+          <div className="card">
+            <div className="flex items-center">
+              <div className="p-3 bg-purple-100 rounded-lg">
+                <MapPin className="w-6 h-6 text-purple-600" />
+              </div>
+              <div className="ml-4">
+                <h3 className="text-sm font-medium text-gray-500">Total Locations</h3>
+                <p className="text-2xl font-semibold text-gray-900">{mockLocations.length}</p>
+              </div>
             </div>
           </div>
-        </div>
 
-        <div className="card">
-          <div className="flex items-center">
-            <div className="p-3 bg-yellow-100 rounded-lg">
-              <CheckCircle className="w-6 h-6 text-yellow-600" />
-            </div>
-            <div className="ml-4">
-              <h3 className="text-sm font-medium text-gray-500">Available Engineers</h3>
-              <p className="text-2xl font-semibold text-gray-900">{mockEngineers.filter(e => e.status === 'active').length}</p>
+          <div className="card">
+            <div className="flex items-center">
+              <div className="p-3 bg-yellow-100 rounded-lg">
+                <CheckCircle className="w-6 h-6 text-yellow-600" />
+              </div>
+              <div className="ml-4">
+                <h3 className="text-sm font-medium text-gray-500">Available Engineers</h3>
+                <p className="text-2xl font-semibold text-gray-900">{mockEngineers.filter(e => e.status === 'active').length}</p>
+              </div>
             </div>
           </div>
         </div>
@@ -774,7 +881,19 @@ export default function EnterpriseScheduler() {
                 
                 <h3 className="font-semibold text-gray-900 mb-1">{engineer.name}</h3>
                 <p className="text-sm text-gray-600 mb-2">{engineer.team.name}</p>
-                <p className="text-xs text-gray-500">{engineer.location.name}</p>
+                <p className="text-xs text-gray-500 mb-2">{engineer.location.name}</p>
+                
+                <div className="flex items-center mb-3 text-xs text-gray-600">
+                  <Clock className="w-3 h-3 mr-1" />
+                  <span>
+                    {engineer.preferredShift === 'shift-a' ? 'Shift A (Day)' :
+                     engineer.preferredShift === 'shift-b' ? 'Shift B (Evening)' :
+                     engineer.preferredShift === 'shift-c' ? 'Shift C (Night)' :
+                     engineer.preferredShift === 'custom' ? `Custom (${engineer.customShiftStart || '06:00'}-${engineer.customShiftEnd || '16:00'})` :
+                     'Shift A (Day)' // Default
+                    }
+                  </span>
+                </div>
                 
                 <div className="mt-3 flex items-center justify-between">
                   <span className="text-xs text-gray-500">
@@ -807,6 +926,7 @@ export default function EnterpriseScheduler() {
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Engineer</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Team</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Location</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Preferred Shift</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                 </tr>
@@ -840,6 +960,19 @@ export default function EnterpriseScheduler() {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{engineer.team.name}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{engineer.location.name}</td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex items-center">
+                        <Clock className="w-4 h-4 text-gray-400 mr-2" />
+                        <span className="text-sm text-gray-900">
+                          {engineer.preferredShift === 'shift-a' ? 'Shift A (Day)' :
+                           engineer.preferredShift === 'shift-b' ? 'Shift B (Evening)' :
+                           engineer.preferredShift === 'shift-c' ? 'Shift C (Night)' :
+                           engineer.preferredShift === 'custom' ? `Custom (${engineer.customShiftStart || '06:00'}-${engineer.customShiftEnd || '16:00'})` :
+                           'Shift A (Day)' // Default
+                          }
+                        </span>
+                      </div>
+                    </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className={`px-2 py-1 rounded-full text-xs font-medium ${
                         engineer.isOnCall 

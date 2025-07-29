@@ -81,6 +81,13 @@ export interface Engineer {
   emergencyContact?: EmergencyContact;
   certifications: string[];
   experience: number; // years
+  // Shift Preferences
+  preferredShift?: 'shift-a' | 'shift-b' | 'shift-c' | 'custom';
+  customShiftStart?: string;
+  customShiftEnd?: string;
+  isFlexibleTiming?: boolean;
+  weeklyHours?: number;
+  overtimePreference?: 'none' | 'limited' | 'flexible' | 'available';
 }
 
 export interface Team {
@@ -387,4 +394,112 @@ export interface SearchFilters {
 export interface SortOption {
   field: string;
   direction: 'asc' | 'desc';
+}
+
+// Enhanced Production Management Types
+export interface DailyProductionEntry {
+  id: string;
+  engineerId: string;
+  engineerName: string;
+  date: string; // YYYY-MM-DD format
+  projectName: string;
+  tasksCompleted: string[];
+  workDuration: 'full-day' | 'half-day'; // Full day = 10 hours, Half day = 5 hours
+  ticketsResolved: number; // New field for tracking daily tickets resolved
+  blockers?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AppreciationUpload {
+  id: string;
+  engineerId: string;
+  engineerName: string;
+  projectName: string;
+  fileName: string;
+  fileUrl: string;
+  fileType: 'pdf' | 'image';
+  fileSize: number; // in bytes
+  description: string;
+  uploadedAt: string;
+  tags?: string[];
+  isPublic: boolean;
+  appreciationType: 'client_feedback' | 'team_recognition' | 'management_appreciation' | 'other';
+}
+
+export interface ProductionSummary {
+  totalHours: number;
+  totalTasks: number;
+  totalTickets: number;
+  totalAppreciations: number;
+  averageHoursPerDay: number;
+  topProjects: ProjectSummary[];
+  topPerformers: EngineerPerformance[];
+  periodStart: string;
+  periodEnd: string;
+}
+
+export interface ProjectSummary {
+  projectName: string;
+  totalHours: number;
+  totalTasks: number;
+  engineersAssigned: number;
+  completionRate: number;
+}
+
+export interface EngineerPerformance {
+  engineerId: string;
+  engineerName: string;
+  totalHours: number;
+  totalTasks: number;
+  appreciationCount: number;
+  averageTasksPerDay: number;
+  efficiency: number; // calculated metric
+}
+
+export interface ProductionFilters {
+  engineerId?: string;
+  projectName?: string;
+  dateRange?: {
+    start: string;
+    end: string;
+  };
+  status?: string;
+  appreciationType?: string;
+}
+
+export interface AdminProductionAccess {
+  userId: string;
+  role: 'admin' | 'manager' | 'team_lead';
+  permissions: ProductionPermission[];
+  departmentAccess: string[];
+  teamAccess: string[];
+}
+
+export type ProductionPermission = 
+  | 'view_all_entries'
+  | 'edit_all_entries'
+  | 'delete_entries'
+  | 'approve_entries'
+  | 'download_reports'
+  | 'manage_users'
+  | 'view_analytics';
+
+export interface ProductionReport {
+  id: string;
+  title: string;
+  type: 'daily' | 'weekly' | 'monthly' | 'custom';
+  dateRange: {
+    start: string;
+    end: string;
+  };
+  filters: ProductionFilters;
+  generatedBy: string;
+  generatedAt: string;
+  data: {
+    entries: DailyProductionEntry[];
+    appreciations: AppreciationUpload[];
+    summary: ProductionSummary;
+  };
+  downloadUrl?: string;
 } 

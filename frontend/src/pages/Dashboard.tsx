@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import { useAuth } from '../contexts/AuthContext';
 import {
   BookOpen,
   Calendar,
@@ -28,6 +29,7 @@ import {
 } from 'lucide-react';
 
 export default function Dashboard() {
+  const { user, isManager } = useAuth();
   const [currentTime, setCurrentTime] = useState(new Date());
 
   useEffect(() => {
@@ -169,40 +171,90 @@ export default function Dashboard() {
     weeklyAdditions: 8
   };
 
-  const schedulerStats = {
-    activeShifts: 23,
-    upcomingShifts: 12,
-    todayShifts: [
-      { time: '09:00 - 19:00', team: 'Network Operations', engineers: 8, status: 'active' },
-      { time: '14:00 - 24:00', team: 'Database Support', engineers: 6, status: 'upcoming' },
-      { time: '19:00 - 07:00', team: 'Security Monitoring', engineers: 5, status: 'upcoming' }
-    ],
-    totalEngineersOnDuty: 42
+  // Role-based stats - Managers see all data, Engineers see limited/personal data
+  const getSchedulerStats = () => {
+    if (isManager) {
+      return {
+        activeShifts: 23,
+        upcomingShifts: 12,
+        todayShifts: [
+          { time: '09:00 - 19:00', team: 'Network Operations', engineers: 8, status: 'active' },
+          { time: '14:00 - 24:00', team: 'Database Support', engineers: 6, status: 'upcoming' },
+          { time: '19:00 - 07:00', team: 'Security Monitoring', engineers: 5, status: 'upcoming' }
+        ],
+        totalEngineersOnDuty: 42
+      };
+    } else {
+      // Engineers see only their own shift info
+      return {
+        activeShifts: 1,
+        upcomingShifts: 2,
+        todayShifts: [
+          { time: '09:00 - 19:00', team: user?.name || 'Your Team', engineers: 1, status: 'active' }
+        ],
+        totalEngineersOnDuty: 8 // Team level only
+      };
+    }
   };
 
-  const engineerStats = {
-    totalEngineers: 150,
-    onlineNow: 89,
-    onCallEngineers: 19,
-    topLocations: [
-      { city: 'Chennai', count: 35 },
-      { city: 'Bengaluru', count: 28 },
-      { city: 'Hyderabad', count: 22 }
-    ],
-    availableEngineers: 67
+  const getEngineerStats = () => {
+    if (isManager) {
+      return {
+        totalEngineers: 150,
+        onlineNow: 89,
+        onCallEngineers: 19,
+        topLocations: [
+          { city: 'Chennai', count: 35 },
+          { city: 'Bengaluru', count: 28 },
+          { city: 'Hyderabad', count: 22 }
+        ],
+        availableEngineers: 67
+      };
+    } else {
+      // Engineers see team-level stats only
+      return {
+        totalEngineers: 8, // Team size
+        onlineNow: 6,
+        onCallEngineers: 1,
+        topLocations: [
+          { city: 'Bangalore', count: 8 }
+        ],
+        availableEngineers: 5
+      };
+    }
   };
 
-  const productionStats = {
-    ticketsResolved: 2847,
-    incidentsHandled: 234,
-    avgSatisfaction: 4.6,
-    systemUptime: 99.8,
-    topPerformers: [
-      { name: 'Arjun Reddy', tickets: 89 },
-      { name: 'Sneha Patel', tickets: 76 },
-      { name: 'Vikram Gupta', tickets: 71 }
-    ]
+  const getProductionStats = () => {
+    if (isManager) {
+      return {
+        ticketsResolved: 2847,
+        incidentsHandled: 234,
+        avgSatisfaction: 4.6,
+        systemUptime: 99.8,
+        topPerformers: [
+          { name: 'Arjun Reddy', tickets: 89 },
+          { name: 'Sneha Patel', tickets: 76 },
+          { name: 'Vikram Gupta', tickets: 71 }
+        ]
+      };
+    } else {
+      // Engineers see personal/team stats
+      return {
+        ticketsResolved: 45, // Personal tickets this month
+        incidentsHandled: 8,  // Personal incidents
+        avgSatisfaction: 4.5,
+        systemUptime: 99.8,
+        topPerformers: [
+          { name: user?.name || 'You', tickets: 45 },
+          { name: 'Team Average', tickets: 38 }
+        ]
+      };
+    }
   };
+
+  const schedulerStats = getSchedulerStats();
+  const engineerStats = getEngineerStats();
+  const productionStats = getProductionStats();
 
   const collaborationStats = {
     activeChannels: 12,
@@ -243,31 +295,35 @@ export default function Dashboard() {
 
   return (
     <div className="p-6 max-w-7xl mx-auto">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-8">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">
-            Welcome, Shashankagowda
-          </h1>
-          <p className="text-gray-600">Your comprehensive CIS Operations Command Center</p>
-        </div>
-        <div className="text-right">
-          <div className="text-2xl font-bold text-gray-900">
-            {currentTime.toLocaleTimeString()}
+      {/* Header and Stats Section with Background */}
+      <div className="bg-gradient-to-br from-blue-50 to-indigo-100 rounded-xl p-6 mb-8">
+        {/* Header */}
+        <div className="flex items-center justify-between mb-8">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900 mb-2">
+              Welcome, {user?.name || 'User'}
+            </h1>
+            <p className="text-gray-600">
+              {isManager ? 'Manager Dashboard - Complete CIS Operations Overview' : 'Your comprehensive CIS Operations Command Center'}
+            </p>
           </div>
-          <div className="text-gray-600 text-sm">
-            {currentTime.toLocaleDateString('en-US', { 
-              weekday: 'long', 
-              year: 'numeric', 
-              month: 'long', 
-              day: 'numeric' 
-            })}
+          <div className="text-right">
+            <div className="text-2xl font-bold text-gray-900">
+              {currentTime.toLocaleTimeString()}
+            </div>
+            <div className="text-gray-600 text-sm">
+              {currentTime.toLocaleDateString('en-US', { 
+                weekday: 'long', 
+                year: 'numeric', 
+                month: 'long', 
+                day: 'numeric' 
+              })}
+            </div>
           </div>
         </div>
-      </div>
 
-      {/* Quick Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+        {/* Quick Stats */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         <div className="card">
           <div className="flex items-center">
             <div className="p-3 bg-blue-100 rounded-lg">
@@ -316,8 +372,7 @@ export default function Dashboard() {
           </div>
         </div>
       </div>
-
-
+      </div>
 
       {/* Main Content Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">

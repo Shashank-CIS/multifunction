@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { useAuth } from '../contexts/AuthContext';
 import {
   MessageSquare,
   Bell,
@@ -59,7 +60,7 @@ const mockMessages: ChatMessage[] = [
   {
     id: '1',
     content: 'Good morning everyone! Ready for the sprint planning meeting?',
-    author: 'John Doe',
+    author: 'Shashankagowda S',
     timestamp: '2023-11-01T09:00:00Z',
     channel: 'general',
     mentions: []
@@ -75,7 +76,7 @@ const mockMessages: ChatMessage[] = [
   {
     id: '3',
     content: '@Mike Johnson could you join us in 5 minutes?',
-    author: 'John Doe',
+    author: 'Pradip Shinde',
     timestamp: '2023-11-01T09:03:00Z',
     channel: 'general',
     mentions: ['Mike Johnson']
@@ -124,6 +125,7 @@ const mockQuickLinks: QuickLink[] = [
 const channels = ['general', 'development', 'support', 'random'];
 
 export default function Collaboration() {
+  const { user, isManager } = useAuth();
   const [announcements, setAnnouncements] = useState<Announcement[]>(mockAnnouncements);
   const [messages, setMessages] = useState<ChatMessage[]>(mockMessages);
   const [quickLinks] = useState<QuickLink[]>(mockQuickLinks);
@@ -199,19 +201,29 @@ export default function Collaboration() {
 
   return (
     <div className="p-6 max-w-7xl mx-auto">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-8">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Team Collaboration</h1>
-          <p className="text-gray-600">Stay connected with announcements, chat, and team resources</p>
+      {/* Header Section with Background */}
+      <div className="bg-gradient-to-br from-blue-50 to-indigo-100 rounded-xl p-6 mb-8">
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900 mb-2">Team Collaboration</h1>
+            <p className="text-gray-600">
+              {isManager 
+                ? 'Manage team announcements, chat, and resources' 
+                : 'Stay connected with announcements, chat, and team resources'
+              }
+            </p>
+          </div>
+          {isManager && (
+            <button
+              onClick={() => setShowCreateAnnouncement(true)}
+              className="btn btn-primary"
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              New Announcement
+            </button>
+          )}
         </div>
-        <button
-          onClick={() => setShowCreateAnnouncement(true)}
-          className="btn btn-primary"
-        >
-          <Plus className="w-4 h-4 mr-2" />
-          New Announcement
-        </button>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

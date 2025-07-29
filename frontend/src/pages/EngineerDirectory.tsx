@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useAuth } from '../contexts/AuthContext';
 import { 
   Search, 
   Filter, 
@@ -239,6 +240,7 @@ const generateMockEngineers = (): Engineer[] => {
 const mockEngineers = generateMockEngineers();
 
 export default function EngineerDirectory() {
+  const { user, isManager } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedEngineer, setSelectedEngineer] = useState<Engineer | null>(null);
   const [showFilters, setShowFilters] = useState(false);
@@ -290,7 +292,21 @@ export default function EngineerDirectory() {
     }
   };
 
-  const filteredEngineers = mockEngineers.filter(engineer => {
+  // Role-based filtering: Engineers see limited data, Managers see all
+  const getAccessibleEngineers = () => {
+    if (isManager) {
+      return mockEngineers; // Managers see all engineers
+    } else {
+      // Engineers see only their own profile and team members (limited info)
+      return mockEngineers.filter(engineer => 
+        engineer.employeeId === user?.engineerId || 
+        engineer.id === user?.id ||
+        engineer.team.id === 'production' // Same team only
+      );
+    }
+  };
+
+  const filteredEngineers = getAccessibleEngineers().filter(engineer => {
     // Search filter
     if (searchTerm && !engineer.name.toLowerCase().includes(searchTerm.toLowerCase()) && 
         !engineer.employeeId.toLowerCase().includes(searchTerm.toLowerCase()) &&
@@ -338,73 +354,82 @@ export default function EngineerDirectory() {
     }
   });
 
-  const stats = {
-    total: mockEngineers.length,
-    active: mockEngineers.filter(e => e.status === 'active').length,
-    teamLeads: mockEngineers.filter(e => e.isTeamLead).length,
-    onCall: mockEngineers.filter(e => e.isOnCall).length
+  // Role-based stats
+  const getStats = () => {
+    const accessibleEngineers = getAccessibleEngineers();
+    return {
+      total: accessibleEngineers.length,
+      active: accessibleEngineers.filter(e => e.status === 'active').length,
+      teamLeads: accessibleEngineers.filter(e => e.isTeamLead).length,
+      onCall: accessibleEngineers.filter(e => e.isOnCall).length
+    };
   };
+
+  const stats = getStats();
 
   return (
     <div className="p-6 max-w-7xl mx-auto">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-8">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Engineer Directory</h1>
-          <p className="text-gray-600">Manage and connect with your CIS team members</p>
+      {/* Header and Stats Section with Background */}
+      <div className="bg-gradient-to-br from-blue-50 to-indigo-100 rounded-xl p-6 mb-8">
+        {/* Header */}
+        <div className="flex items-center justify-between mb-8">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900 mb-2">Engineer Directory</h1>
+            <p className="text-gray-600">Manage and connect with your CIS team members</p>
+          </div>
+          <button className="btn btn-primary">
+            <Plus className="w-4 h-4 mr-2" />
+            Add Engineer
+          </button>
         </div>
-        <button className="btn btn-primary">
-          <Plus className="w-4 h-4 mr-2" />
-          Add Engineer
-        </button>
-      </div>
 
-      {/* Quick Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-        <div className="card">
-          <div className="flex items-center">
-            <div className="p-3 bg-blue-100 rounded-lg">
-              <Users className="w-6 h-6 text-blue-600" />
-            </div>
-            <div className="ml-4">
-              <h3 className="text-sm font-medium text-gray-500">Total Engineers</h3>
-              <p className="text-2xl font-semibold text-gray-900">{mockEngineers.length}</p>
+        {/* Quick Stats */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+          <div className="card">
+            <div className="flex items-center">
+              <div className="p-3 bg-blue-100 rounded-lg">
+                <Users className="w-6 h-6 text-blue-600" />
+              </div>
+              <div className="ml-4">
+                <h3 className="text-sm font-medium text-gray-500">Total Engineers</h3>
+                <p className="text-2xl font-semibold text-gray-900">{mockEngineers.length}</p>
+              </div>
             </div>
           </div>
-        </div>
 
-        <div className="card">
-          <div className="flex items-center">
-            <div className="p-3 bg-green-100 rounded-lg">
-              <CheckCircle className="w-6 h-6 text-green-600" />
-            </div>
-            <div className="ml-4">
-              <h3 className="text-sm font-medium text-gray-500">Active Engineers</h3>
-              <p className="text-2xl font-semibold text-gray-900">{mockEngineers.filter(e => e.status === 'active').length}</p>
+          <div className="card">
+            <div className="flex items-center">
+              <div className="p-3 bg-green-100 rounded-lg">
+                <CheckCircle className="w-6 h-6 text-green-600" />
+              </div>
+              <div className="ml-4">
+                <h3 className="text-sm font-medium text-gray-500">Active Engineers</h3>
+                <p className="text-2xl font-semibold text-gray-900">{mockEngineers.filter(e => e.status === 'active').length}</p>
+              </div>
             </div>
           </div>
-        </div>
 
-        <div className="card">
-          <div className="flex items-center">
-            <div className="p-3 bg-purple-100 rounded-lg">
-              <MapPin className="w-6 h-6 text-purple-600" />
-            </div>
-            <div className="ml-4">
-              <h3 className="text-sm font-medium text-gray-500">Locations</h3>
-              <p className="text-2xl font-semibold text-gray-900">{mockLocations.length}</p>
+          <div className="card">
+            <div className="flex items-center">
+              <div className="p-3 bg-purple-100 rounded-lg">
+                <MapPin className="w-6 h-6 text-purple-600" />
+              </div>
+              <div className="ml-4">
+                <h3 className="text-sm font-medium text-gray-500">Locations</h3>
+                <p className="text-2xl font-semibold text-gray-900">{mockLocations.length}</p>
+              </div>
             </div>
           </div>
-        </div>
 
-        <div className="card">
-          <div className="flex items-center">
-            <div className="p-3 bg-yellow-100 rounded-lg">
-              <Briefcase className="w-6 h-6 text-yellow-600" />
-            </div>
-            <div className="ml-4">
-              <h3 className="text-sm font-medium text-gray-500">Teams</h3>
-              <p className="text-2xl font-semibold text-gray-900">{mockTeams.length}</p>
+          <div className="card">
+            <div className="flex items-center">
+              <div className="p-3 bg-yellow-100 rounded-lg">
+                <Briefcase className="w-6 h-6 text-yellow-600" />
+              </div>
+              <div className="ml-4">
+                <h3 className="text-sm font-medium text-gray-500">Teams</h3>
+                <p className="text-2xl font-semibold text-gray-900">{mockTeams.length}</p>
+              </div>
             </div>
           </div>
         </div>

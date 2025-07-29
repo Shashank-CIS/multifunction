@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useAuth } from '../contexts/AuthContext';
 import { 
   Users, 
   Settings, 
@@ -48,12 +49,31 @@ const mockRecentActivities = [
 ];
 
 export default function AdminPanel() {
+  const { user, isManager } = useAuth();
   const [activeTab, setActiveTab] = useState<'overview' | 'engineers' | 'teams' | 'projects' | 'shifts' | 'bulk-ops'>('overview');
   const [showModal, setShowModal] = useState(false);
   const [modalType, setModalType] = useState<'add' | 'edit' | 'delete'>('add');
   const [selectedItem, setSelectedItem] = useState<any>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+
+  // Access control - only managers can access admin panel
+  if (!isManager) {
+    return (
+      <div className="p-6 max-w-7xl mx-auto">
+        <div className="bg-red-50 border border-red-200 rounded-lg p-6 text-center">
+          <Shield className="w-12 h-12 text-red-600 mx-auto mb-4" />
+          <h2 className="text-xl font-semibold text-red-900 mb-2">Access Denied</h2>
+          <p className="text-red-700">
+            You don't have permission to access the Admin Panel. This area is restricted to managers only.
+          </p>
+          <p className="text-sm text-red-600 mt-2">
+            Current Role: Engineer | Required Role: Manager
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   // Sample data for each section
   const [engineers, setEngineers] = useState<Engineer[]>([]);

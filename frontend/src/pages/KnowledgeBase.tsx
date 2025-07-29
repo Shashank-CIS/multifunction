@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useAuth } from '../contexts/AuthContext';
 import { 
   Search, 
   Plus, 
@@ -76,6 +77,7 @@ const mockCategories = [
 ];
 
 const KnowledgeBase: React.FC = () => {
+  const { user, isManager } = useAuth();
   const [articles, setArticles] = useState<KnowledgeArticle[]>(mockArticles);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('');
@@ -113,70 +115,77 @@ const KnowledgeBase: React.FC = () => {
 
   return (
     <div className="p-6 max-w-7xl mx-auto">
-      {/* Header */}
-      <div className="card mb-8">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">Knowledge Base</h1>
-            <p className="text-gray-600">Search and browse technical documentation</p>
-          </div>
-          <button className="btn btn-primary">
-            <Plus className="w-4 h-4 mr-2" />
-            New Article
-          </button>
-        </div>
-      </div>
-
-      {/* Quick Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-        <div className="card">
-          <div className="flex items-center">
-            <div className="p-3 bg-blue-100 rounded-lg">
-              <BookOpen className="w-6 h-6 text-blue-600" />
-            </div>
-            <div className="ml-4">
-              <h3 className="text-sm font-medium text-gray-500">Total Articles</h3>
-              <p className="text-2xl font-semibold text-gray-900">{mockArticles.length}</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="card">
-          <div className="flex items-center">
-            <div className="p-3 bg-green-100 rounded-lg">
-              <ThumbsUp className="w-6 h-6 text-green-600" />
-            </div>
-            <div className="ml-4">
-              <h3 className="text-sm font-medium text-gray-500">Helpful Votes</h3>
-              <p className="text-2xl font-semibold text-gray-900">
-                {mockArticles.reduce((sum, article) => sum + article.helpful, 0)}
+      {/* Header and Stats Section with Background */}
+      <div className="bg-gradient-to-br from-blue-50 to-indigo-100 rounded-xl p-6 mb-8">
+        {/* Header */}
+        <div className="card mb-8">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900">Knowledge Base</h1>
+              <p className="text-gray-600">
+                {isManager ? 'Manage and browse technical documentation' : 'Search and browse technical documentation'}
               </p>
             </div>
+            {isManager && (
+              <button className="btn btn-primary">
+                <Plus className="w-4 h-4 mr-2" />
+                New Article
+              </button>
+            )}
           </div>
         </div>
 
-        <div className="card">
-          <div className="flex items-center">
-            <div className="p-3 bg-purple-100 rounded-lg">
-              <Eye className="w-6 h-6 text-purple-600" />
-            </div>
-            <div className="ml-4">
-              <h3 className="text-sm font-medium text-gray-500">Total Views</h3>
-              <p className="text-2xl font-semibold text-gray-900">
-                {mockArticles.reduce((sum, article) => sum + article.views, 0)}
-              </p>
+        {/* Quick Stats */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+          <div className="card">
+            <div className="flex items-center">
+              <div className="p-3 bg-blue-100 rounded-lg">
+                <BookOpen className="w-6 h-6 text-blue-600" />
+              </div>
+              <div className="ml-4">
+                <h3 className="text-sm font-medium text-gray-500">Total Articles</h3>
+                <p className="text-2xl font-semibold text-gray-900">{mockArticles.length}</p>
+              </div>
             </div>
           </div>
-        </div>
 
-        <div className="card">
-          <div className="flex items-center">
-            <div className="p-3 bg-yellow-100 rounded-lg">
-              <RefreshCw className="w-6 h-6 text-yellow-600" />
+          <div className="card">
+            <div className="flex items-center">
+              <div className="p-3 bg-green-100 rounded-lg">
+                <ThumbsUp className="w-6 h-6 text-green-600" />
+              </div>
+              <div className="ml-4">
+                <h3 className="text-sm font-medium text-gray-500">Helpful Votes</h3>
+                <p className="text-2xl font-semibold text-gray-900">
+                  {mockArticles.reduce((sum, article) => sum + article.helpful, 0)}
+                </p>
+              </div>
             </div>
-            <div className="ml-4">
-              <h3 className="text-sm font-medium text-gray-500">Categories</h3>
-              <p className="text-2xl font-semibold text-gray-900">{mockCategories.length}</p>
+          </div>
+
+          <div className="card">
+            <div className="flex items-center">
+              <div className="p-3 bg-purple-100 rounded-lg">
+                <Eye className="w-6 h-6 text-purple-600" />
+              </div>
+              <div className="ml-4">
+                <h3 className="text-sm font-medium text-gray-500">Total Views</h3>
+                <p className="text-2xl font-semibold text-gray-900">
+                  {mockArticles.reduce((sum, article) => sum + article.views, 0)}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="card">
+            <div className="flex items-center">
+              <div className="p-3 bg-yellow-100 rounded-lg">
+                <RefreshCw className="w-6 h-6 text-yellow-600" />
+              </div>
+              <div className="ml-4">
+                <h3 className="text-sm font-medium text-gray-500">Categories</h3>
+                <p className="text-2xl font-semibold text-gray-900">{mockCategories.length}</p>
+              </div>
             </div>
           </div>
         </div>

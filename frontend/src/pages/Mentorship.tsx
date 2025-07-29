@@ -372,31 +372,34 @@ export default function Mentorship() {
 
   return (
     <div className="p-6 max-w-7xl mx-auto">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-8">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Mentorship Program</h1>
-          <p className="text-gray-600">Connect, learn, and grow together</p>
-        </div>
-        <div className="flex items-center space-x-3">
-          <button
-            onClick={() => setView('overview')}
-            className={`btn ${view === 'overview' ? 'btn-primary' : 'btn-secondary'}`}
-          >
-            Overview
-          </button>
-          <button
-            onClick={() => setView('find-mentor')}
-            className={`btn ${view === 'find-mentor' ? 'btn-primary' : 'btn-secondary'}`}
-          >
-            Find Mentor
-          </button>
-          <button
-            onClick={() => setView('my-mentorship')}
-            className={`btn ${view === 'my-mentorship' ? 'btn-primary' : 'btn-secondary'}`}
-          >
-            My Mentorship
-          </button>
+      {/* Header Section with Background */}
+      <div className="bg-gradient-to-br from-blue-50 to-indigo-100 rounded-xl p-6 mb-8">
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900 mb-2">Mentorship Program</h1>
+            <p className="text-gray-600">Connect, learn, and grow together</p>
+          </div>
+          <div className="flex items-center space-x-3">
+            <button
+              onClick={() => setView('overview')}
+              className={`btn ${view === 'overview' ? 'btn-primary' : 'btn-secondary'}`}
+            >
+              Overview
+            </button>
+            <button
+              onClick={() => setView('find-mentor')}
+              className={`btn ${view === 'find-mentor' ? 'btn-primary' : 'btn-secondary'}`}
+            >
+              Find Mentor
+            </button>
+            <button
+              onClick={() => setView('my-mentorship')}
+              className={`btn ${view === 'my-mentorship' ? 'btn-primary' : 'btn-secondary'}`}
+            >
+              My Mentorship
+            </button>
+          </div>
         </div>
       </div>
 
