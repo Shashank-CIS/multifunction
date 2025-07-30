@@ -88,6 +88,10 @@ export interface Engineer {
   isFlexibleTiming?: boolean;
   weeklyHours?: number;
   overtimePreference?: 'none' | 'limited' | 'flexible' | 'available';
+  // Schedule Policy
+  isRotationSchedule?: boolean; // true if engineer has rotation schedule (2 days off), false for standard weekend off
+  rotationOffDays?: number[]; // Array of day numbers (0=Sunday, 1=Monday, etc.) for rotation engineers
+  worksWeekends?: boolean; // true if engineer works weekends (only for rotation schedule)
 }
 
 export interface Team {

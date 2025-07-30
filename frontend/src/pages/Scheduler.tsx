@@ -18,10 +18,21 @@ import {
   Briefcase,
   AlertCircle,
   CheckCircle,
-  User
+  User,
+  Mail,
+  Phone,
+  Calendar,
+  Award,
+  TrendingUp,
+  Target,
+  Activity,
+  Star,
+  Shield,
+  Eye,
+  Edit
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { Engineer, ShiftType, ShiftAssignment, Team, Department, Location, Project, SchedulerFilters } from '@/types';
+import { Engineer, ShiftType, ShiftAssignment, Team, Department, Location, Project, SchedulerFilters, ProductionMetrics } from '@/types';
 
 
 
@@ -471,6 +482,23 @@ const generateMockEngineers = (): Engineer[] => {
       };
     }
 
+    // Determine rotation schedule policy
+    const isRotationSchedule = Math.random() > 0.75; // 25% of engineers have rotation schedule
+    let rotationOffDays: number[] = [];
+    let worksWeekends = false;
+
+    if (isRotationSchedule) {
+      // For rotation engineers, assign 2 random off days (not necessarily weekends)
+      const allDays = [0, 1, 2, 3, 4, 5, 6]; // Sunday=0, Monday=1, ..., Saturday=6
+      const shuffled = allDays.sort(() => 0.5 - Math.random());
+      rotationOffDays = shuffled.slice(0, 2).sort(); // Take 2 random days and sort them
+      worksWeekends = rotationOffDays.includes(0) || rotationOffDays.includes(6) ? false : true; // Works weekends if off days don't include weekend
+    } else {
+      // Standard schedule: Saturday and Sunday off
+      rotationOffDays = [0, 6]; // Sunday and Saturday
+      worksWeekends = false;
+    }
+
     engineers.push({
       id: `cis-${i.toString().padStart(3, '0')}`,
       employeeId: `CTS${(300000 + i).toString()}`,
@@ -504,7 +532,11 @@ const generateMockEngineers = (): Engineer[] => {
       ].slice(0, Math.floor(Math.random() * 3) + 1),
       experience: Math.floor(Math.random() * 12) + 2,
       // Shift Preferences
-      ...shiftPrefs
+      ...shiftPrefs,
+      // Schedule Policy
+      isRotationSchedule,
+      rotationOffDays,
+      worksWeekends
     });
   }
   
@@ -540,14 +572,59 @@ const getEngineersWithUpdatedPreferences = () => {
 
 export default function EnterpriseScheduler() {
   const { user, isManager } = useAuth();
-  const [view, setView] = useState<'grid' | 'list'>('grid');
-  const [selectedDate, setSelectedDate] = useState(new Date());
-  const [assignments, setAssignments] = useState<ShiftAssignment[]>([]);
-  const [showFilters, setShowFilters] = useState(false);
-  const [showAssignModal, setShowAssignModal] = useState(false);
-  const [selectedEngineers, setSelectedEngineers] = useState<string[]>([]);
-  const [refreshKey, setRefreshKey] = useState(0); // To force re-render when preferences change
   
+  // Main view toggle between Schedule and Directory
+  const [mainView, setMainView] = useState<'schedule' | 'directory'>('schedule');
+  
+  // Scheduler state (existing)
+  const [selectedEngineers, setSelectedEngineers] = useState<string[]>([]);
+  const [assignments, setAssignments] = useState<ShiftAssignment[]>([]);
+  const [view, setView] = useState<'grid' | 'list'>('grid');
+  const [showAssignModal, setShowAssignModal] = useState(false);
+  const [showCreateShiftModal, setShowCreateShiftModal] = useState(false);
+  const [newShiftForm, setNewShiftForm] = useState({
+    title: '',
+    shiftType: '',
+    startDate: '',
+    endDate: '',
+    location: '',
+    assignee: '',
+    description: ''
+  });
+  const [showViewScheduleModal, setShowViewScheduleModal] = useState(false);
+  const [showIndividualAssignModal, setShowIndividualAssignModal] = useState(false);
+  const [selectedEngineerForView, setSelectedEngineerForView] = useState<Engineer | null>(null);
+  const [selectedEngineerForAssign, setSelectedEngineerForAssign] = useState<Engineer | null>(null);
+  const [showEngineerProfileModal, setShowEngineerProfileModal] = useState(false);
+  const [selectedEngineerForProfile, setSelectedEngineerForProfile] = useState<Engineer | null>(null);
+
+  // Engineer Directory state (new)
+  const [directorySearchTerm, setDirectorySearchTerm] = useState('');
+  const [selectedEngineer, setSelectedEngineer] = useState<Engineer | null>(null);
+  const [showDirectoryFilters, setShowDirectoryFilters] = useState(false);
+  const [directoryFilters, setDirectoryFilters] = useState({
+    team: '',
+    location: '',
+    skills: [] as string[],
+    status: ''
+  });
+  const [directorySortBy, setDirectorySortBy] = useState<'name' | 'experience' | 'joinDate'>('name');
+  const [directorySortOrder, setDirectorySortOrder] = useState<'asc' | 'desc'>('asc');
+  const [directoryView, setDirectoryView] = useState<'grid' | 'list'>('grid');
+  const [showProductionModal, setShowProductionModal] = useState(false);
+  const [selectedEngineerForProduction, setSelectedEngineerForProduction] = useState<Engineer | null>(null);
+  const [productionForm, setProductionForm] = useState<ProductionMetrics>({
+    ticketsResolved: 0,
+    incidentsHandled: 0,
+    tasksCompleted: 0,
+    systemUptimeHours: 0,
+    projectsDelivered: 0,
+    monthlyTarget: 0,
+    lastUpdated: '',
+    averageResolutionTime: 0,
+    customerSatisfactionRating: 0
+  });
+
   const [filters, setFilters] = useState<SchedulerFilters>({
     dateRange: {
       start: moment().format('YYYY-MM-DD'),
@@ -560,6 +637,7 @@ export default function EnterpriseScheduler() {
     shiftTypes: [],
     engineers: []
   });
+  const [scheduleTypeFilter, setScheduleTypeFilter] = useState<'all' | 'standard' | 'rotation'>('all');
 
   const [searchTerm, setSearchTerm] = useState('');
   const [stats, setStats] = useState({
@@ -573,7 +651,7 @@ export default function EnterpriseScheduler() {
   useEffect(() => {
     const handleStorageChange = (e: StorageEvent) => {
       if (e.key && e.key.startsWith('shift_prefs_')) {
-        setRefreshKey(prev => prev + 1);
+        // setRefreshKey(prev => prev + 1); // This state was removed, so no need to update it here
       }
     };
     
@@ -623,12 +701,9 @@ export default function EnterpriseScheduler() {
     if (isManager) {
       return updatedEngineers; // Managers can schedule all engineers
     } else {
-      // Engineers can only view their own schedule and team members
-      return updatedEngineers.filter(engineer => 
-        engineer.employeeId === user?.engineerId || 
-        engineer.id === user?.id ||
-        engineer.team.id === 'production' // Same team only
-      );
+      // Engineers can view all engineers for schedule visibility, but with limited actions
+      // This allows them to see team schedules and coordinate better
+      return updatedEngineers;
     }
   };
 
@@ -650,6 +725,14 @@ export default function EnterpriseScheduler() {
       return false;
     }
     
+    // Schedule type filter
+    if (scheduleTypeFilter === 'standard' && engineer.isRotationSchedule) {
+      return false;
+    }
+    if (scheduleTypeFilter === 'rotation' && !engineer.isRotationSchedule) {
+      return false;
+    }
+    
     return true;
   });
 
@@ -658,322 +741,449 @@ export default function EnterpriseScheduler() {
   const handleBulkAssign = () => {
     // Bulk assignment logic would go here
     setShowAssignModal(false);
-    setSelectedEngineers([]);
   };
 
+  // Engineer Directory handlers
+  const handleUpdateProduction = (engineer: Engineer) => {
+    setSelectedEngineerForProduction(engineer);
+    setProductionForm(engineer.productionMetrics);
+    setShowProductionModal(true);
+  };
+
+  const handleSaveProduction = () => {
+    if (selectedEngineerForProduction) {
+      const updatedMetrics = {
+        ...productionForm,
+        lastUpdated: new Date().toISOString()
+      };
+      
+      selectedEngineerForProduction.productionMetrics = updatedMetrics;
+      setShowProductionModal(false);
+      setSelectedEngineerForProduction(null);
+      alert('Production metrics updated successfully!');
+    }
+  };
+
+  // Create Shift handlers
+  const handleCreateShift = () => {
+    setShowCreateShiftModal(true);
+  };
+
+  const handleSaveNewShift = () => {
+    if (newShiftForm.title && newShiftForm.shiftType && newShiftForm.startDate && newShiftForm.endDate) {
+      // In a real app, this would make an API call
+      console.log('Creating new shift:', newShiftForm);
+      alert('Shift created successfully!');
+      setShowCreateShiftModal(false);
+      setNewShiftForm({
+        title: '',
+        shiftType: '',
+        startDate: '',
+        endDate: '',
+        location: '',
+        assignee: '',
+        description: ''
+      });
+    } else {
+      alert('Please fill in all required fields.');
+    }
+  };
+
+  // View Schedule handlers
+  const handleViewSchedule = (engineer: Engineer) => {
+    setSelectedEngineerForView(engineer);
+    setShowViewScheduleModal(true);
+  };
+
+  // Individual Assignment handlers
+  const handleIndividualAssign = (engineer: Engineer) => {
+    setSelectedEngineerForAssign(engineer);
+    setShowIndividualAssignModal(true);
+  };
+
+  // Engineer Profile handlers
+  const handleViewProfile = (engineer: Engineer) => {
+    setSelectedEngineerForProfile(engineer);
+    setShowEngineerProfileModal(true);
+  };
+
+  const handleSaveIndividualAssignment = () => {
+    if (selectedEngineerForAssign && newShiftForm.shiftType && newShiftForm.startDate) {
+      // Check if assignment conflicts with off days
+      const startDate = new Date(newShiftForm.startDate);
+      const dayOfWeek = startDate.getDay(); // 0=Sunday, 1=Monday, etc.
+      
+      if (selectedEngineerForAssign.rotationOffDays?.includes(dayOfWeek)) {
+        const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+        alert(`Cannot assign shift on ${dayNames[dayOfWeek]} - this is ${selectedEngineerForAssign.name}'s off day.`);
+        return;
+      }
+      
+      console.log('Assigning shift to:', selectedEngineerForAssign.name, newShiftForm);
+      alert(`Shift assigned to ${selectedEngineerForAssign.name} successfully!`);
+      setShowIndividualAssignModal(false);
+      setSelectedEngineerForAssign(null);
+      setNewShiftForm({
+        title: '',
+        shiftType: '',
+        startDate: '',
+        endDate: '',
+        location: '',
+        assignee: '',
+        description: ''
+      });
+    } else {
+      alert('Please fill in required fields.');
+    }
+  };
+
+  // Engineer Directory filtering
+  const getDirectoryFilteredEngineers = () => {
+    return getAccessibleEngineers().filter(engineer => {
+      // Search filter
+      if (directorySearchTerm && !engineer.name.toLowerCase().includes(directorySearchTerm.toLowerCase()) && 
+          !engineer.employeeId.toLowerCase().includes(directorySearchTerm.toLowerCase()) &&
+          !engineer.email.toLowerCase().includes(directorySearchTerm.toLowerCase())) {
+        return false;
+      }
+      
+      // Team filter
+      if (directoryFilters.team && engineer.team.id !== directoryFilters.team) {
+        return false;
+      }
+      
+      // Location filter
+      if (directoryFilters.location && engineer.location.id !== directoryFilters.location) {
+        return false;
+      }
+      
+      // Status filter
+      if (directoryFilters.status && engineer.status !== directoryFilters.status) {
+        return false;
+      }
+      
+      return true;
+    }).sort((a, b) => {
+      let aValue, bValue;
+      
+      switch (directorySortBy) {
+        case 'experience':
+          aValue = a.experience;
+          bValue = b.experience;
+          break;
+        case 'joinDate':
+          aValue = new Date(a.joinDate).getTime();
+          bValue = new Date(b.joinDate).getTime();
+          break;
+        default:
+          aValue = a.name.toLowerCase();
+          bValue = b.name.toLowerCase();
+      }
+      
+      if (directorySortOrder === 'asc') {
+        return aValue > bValue ? 1 : -1;
+      } else {
+        return aValue < bValue ? 1 : -1;
+      }
+    });
+  };
+
+  // Get stats for directory
+  const getDirectoryStats = () => {
+    const accessibleEngineers = getAccessibleEngineers();
+    return {
+      total: accessibleEngineers.length,
+      active: accessibleEngineers.filter(e => e.status === 'active').length,
+      teamLeads: accessibleEngineers.filter(e => e.isTeamLead).length,
+      onCall: accessibleEngineers.filter(e => e.isOnCall).length
+    };
+  };
 
 
   return (
     <div className="p-6 max-w-7xl mx-auto">
-      {/* Header and Stats Section with Background */}
-      <div className="bg-gradient-to-br from-blue-50 to-indigo-100 rounded-xl p-6 mb-8">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-8">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">Shift Scheduler</h1>
-            <p className="text-gray-600">Manage your CIS team schedules with precision</p>
-          </div>
-          
-          {/* My Shift Display */}
-          {user?.engineerId && (
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 min-w-[220px]">
-              <div className="flex justify-between items-center">
-                <span className="text-gray-600 text-sm">My Shift:</span>
-                <span className="font-medium text-indigo-600">
-                  {(() => {
-                    const storedPrefs = localStorage.getItem(`shift_prefs_${user.engineerId}`);
-                    if (storedPrefs) {
-                      try {
-                        const prefs = JSON.parse(storedPrefs);
-                        if (prefs.preferredShift === 'shift-a') return '06:00 - 16:00';
-                        if (prefs.preferredShift === 'shift-b') return '14:00 - 00:00';
-                        if (prefs.preferredShift === 'shift-c') return '22:00 - 08:00';
-                        if (prefs.preferredShift === 'custom') return `${prefs.shiftStartTime || '06:00'} - ${prefs.shiftEndTime || '16:00'}`;
-                      } catch (e) {
-                        // ignore error
-                      }
-                    }
-                    return '06:00 - 16:00';
-                  })()}
-                </span>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Quick Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-          <div className="card">
-            <div className="flex items-center">
-              <div className="p-3 bg-blue-100 rounded-lg">
-                <Clock className="w-6 h-6 text-blue-600" />
-              </div>
-              <div className="ml-4">
-                <h3 className="text-sm font-medium text-gray-500">Active Shifts</h3>
-                <p className="text-2xl font-semibold text-gray-900">{mockShiftTypes.filter(s => s.isOvernight).length}</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="card">
-            <div className="flex items-center">
-              <div className="p-3 bg-green-100 rounded-lg">
-                <Users className="w-6 h-6 text-green-600" />
-              </div>
-              <div className="ml-4">
-                <h3 className="text-sm font-medium text-gray-500">Engineers on Duty</h3>
-                <p className="text-2xl font-semibold text-gray-900">{mockEngineers.filter(e => e.isOnCall).length}</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="card">
-            <div className="flex items-center">
-              <div className="p-3 bg-purple-100 rounded-lg">
-                <MapPin className="w-6 h-6 text-purple-600" />
-              </div>
-              <div className="ml-4">
-                <h3 className="text-sm font-medium text-gray-500">Total Locations</h3>
-                <p className="text-2xl font-semibold text-gray-900">{mockLocations.length}</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="card">
-            <div className="flex items-center">
-              <div className="p-3 bg-yellow-100 rounded-lg">
-                <CheckCircle className="w-6 h-6 text-yellow-600" />
-              </div>
-              <div className="ml-4">
-                <h3 className="text-sm font-medium text-gray-500">Available Engineers</h3>
-                <p className="text-2xl font-semibold text-gray-900">{mockEngineers.filter(e => e.status === 'active').length}</p>
-              </div>
-            </div>
-          </div>
+      {/* Main View Toggle */}
+      <div className="mb-6">
+        <div className="bg-white rounded-lg border border-gray-200 p-1 inline-flex">
+          <button
+            onClick={() => setMainView('schedule')}
+            className={`px-6 py-2 rounded-md text-sm font-medium transition-colors ${
+              mainView === 'schedule'
+                ? 'bg-blue-600 text-white shadow-sm'
+                : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+            }`}
+          >
+            <Clock className="w-4 h-4 mr-2 inline" />
+            Shift Schedule
+          </button>
+          <button
+            onClick={() => setMainView('directory')}
+            className={`px-6 py-2 rounded-md text-sm font-medium transition-colors ${
+              mainView === 'directory'
+                ? 'bg-blue-600 text-white shadow-sm'
+                : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+            }`}
+          >
+            <Users className="w-4 h-4 mr-2 inline" />
+            Engineer Directory
+          </button>
         </div>
       </div>
 
-      {/* Filters */}
-      <div className="card mb-8">
-        <h2 className="text-xl font-semibold text-gray-900 mb-6">Schedule Management</h2>
-        
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-          {/* Filters */}
-          <div className="lg:col-span-3 grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-              <label className="block text-gray-700 text-sm font-medium mb-2">View</label>
-              <select 
-                value={view} 
-                onChange={(e) => setView(e.target.value as any)}
-                className="input w-full"
-              >
-                <option value="grid">Grid View</option>
-                <option value="list">List View</option>
-              </select>
-            </div>
-            
-            <div>
-              <label className="block text-gray-700 text-sm font-medium mb-2">Team</label>
-              <select 
-                value={filters.teams.length === 0 ? '' : filters.teams[0]} 
-                onChange={(e) => setFilters(prev => ({ ...prev, teams: [e.target.value] }))}
-                className="input w-full"
-              >
-                <option value="">All Teams</option>
-                {mockTeams.map(team => (
-                  <option key={team.id} value={team.id}>{team.name}</option>
-                ))}
-              </select>
-            </div>
-            
-            <div>
-              <label className="block text-gray-700 text-sm font-medium mb-2">Location</label>
-              <select 
-                value={filters.locations.length === 0 ? '' : filters.locations[0]} 
-                onChange={(e) => setFilters(prev => ({ ...prev, locations: [e.target.value] }))}
-                className="input w-full"
-              >
-                <option value="">All Locations</option>
-                {mockLocations.map(location => (
-                  <option key={location.id} value={location.id}>{location.name}</option>
-                ))}
-              </select>
-            </div>
-          </div>
-          
-          {/* Action Button */}
-          <div className="flex items-end">
-            <button className="btn btn-primary w-full">
-              <Plus className="w-4 h-4 mr-2" />
-              Create Shift
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* Engineers Grid/List */}
-      <div className="card">
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-xl font-semibold text-gray-900">Engineers Schedule</h2>
-          <div className="flex items-center space-x-2">
-            <button
-              onClick={() => setShowAssignModal(true)}
-              disabled={selectedEngineers.length === 0}
-              className="btn btn-secondary disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              Bulk Assign
-            </button>
-            <div className="flex rounded-lg border border-gray-300 p-1">
-              <button
-                onClick={() => setView('grid')}
-                className={`px-3 py-1 rounded text-sm transition-colors ${
-                  view === 'grid' 
-                    ? 'bg-blue-600 text-white' 
-                    : 'text-gray-600 hover:text-gray-900'
-                }`}
-              >
-                Grid
-              </button>
-              <button
-                onClick={() => setView('list')}
-                className={`px-3 py-1 rounded text-sm transition-colors ${
-                  view === 'list' 
-                    ? 'bg-blue-600 text-white' 
-                    : 'text-gray-600 hover:text-gray-900'
-                }`}
-              >
-                List
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {view === 'grid' ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {mockEngineers.slice(0, 12).map(engineer => (
-              <div key={engineer.id} className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
-                <div className="flex items-center justify-between mb-3">
-                  <div className="flex items-center">
-                    <input
-                      type="checkbox"
-                      checked={selectedEngineers.includes(engineer.id)}
-                      onChange={(e) => {
-                        if (e.target.checked) {
-                          setSelectedEngineers(prev => [...prev, engineer.id]);
-                        } else {
-                          setSelectedEngineers(prev => prev.filter(id => id !== engineer.id));
+      {/* Conditional Content Based on Main View */}
+      {mainView === 'schedule' ? (
+        <>
+          {/* Header and Stats Section with Background */}
+          <div className="bg-gradient-to-br from-blue-50 to-indigo-100 rounded-xl p-6 mb-8">
+            {/* Header */}
+            <div className="flex items-center justify-between mb-8">
+              <div>
+                <h1 className="text-3xl font-bold text-gray-900 mb-2">Shift Scheduler</h1>
+                <p className="text-gray-600">Manage your CIS team schedules with precision</p>
+              </div>
+              
+              {/* My Shift Display */}
+              {user?.engineerId && (
+                <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 min-w-[220px]">
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-600 text-sm">My Shift:</span>
+                    <span className="font-medium text-indigo-600">
+                      {(() => {
+                        const storedPrefs = localStorage.getItem(`shift_prefs_${user.engineerId}`);
+                        if (storedPrefs) {
+                          try {
+                            const prefs = JSON.parse(storedPrefs);
+                            if (prefs.preferredShift === 'shift-a') return '06:00 - 16:00';
+                            if (prefs.preferredShift === 'shift-b') return '14:00 - 00:00';
+                            if (prefs.preferredShift === 'shift-c') return '22:00 - 08:00';
+                            if (prefs.preferredShift === 'custom') return `${prefs.shiftStartTime || '06:00'} - ${prefs.shiftEndTime || '16:00'}`;
+                          } catch (e) {
+                            // ignore error
+                          }
                         }
-                      }}
-                      className="mr-3"
-                    />
-                    <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
-                      <User className="w-5 h-5 text-blue-600" />
-                    </div>
+                        return '06:00 - 16:00';
+                      })()}
+                    </span>
                   </div>
-                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                    engineer.isOnCall 
-                      ? 'bg-green-100 text-green-800' 
-                      : 'bg-gray-100 text-gray-800'
-                  }`}>
-                    {engineer.isOnCall ? 'On Call' : 'Available'}
-                  </span>
+                </div>
+              )}
+            </div>
+
+            {/* Quick Stats */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+              <div className="card">
+                <div className="flex items-center">
+                  <div className="p-3 bg-blue-100 rounded-lg">
+                    <Clock className="w-6 h-6 text-blue-600" />
+                  </div>
+                  <div className="ml-4">
+                    <h3 className="text-sm font-medium text-gray-500">Active Shifts</h3>
+                    <p className="text-2xl font-semibold text-gray-900">{mockShiftTypes.filter(s => s.isOvernight).length}</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="card">
+                <div className="flex items-center">
+                  <div className="p-3 bg-green-100 rounded-lg">
+                    <Users className="w-6 h-6 text-green-600" />
+                  </div>
+                  <div className="ml-4">
+                    <h3 className="text-sm font-medium text-gray-500">Engineers on Duty</h3>
+                    <p className="text-2xl font-semibold text-gray-900">{mockEngineers.filter(e => e.isOnCall).length}</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="card">
+                <div className="flex items-center">
+                  <div className="p-3 bg-purple-100 rounded-lg">
+                    <MapPin className="w-6 h-6 text-purple-600" />
+                  </div>
+                  <div className="ml-4">
+                    <h3 className="text-sm font-medium text-gray-500">Total Locations</h3>
+                    <p className="text-2xl font-semibold text-gray-900">{mockLocations.length}</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="card">
+                <div className="flex items-center">
+                  <div className="p-3 bg-yellow-100 rounded-lg">
+                    <CheckCircle className="w-6 h-6 text-yellow-600" />
+                  </div>
+                  <div className="ml-4">
+                    <h3 className="text-sm font-medium text-gray-500">Available Engineers</h3>
+                    <p className="text-2xl font-semibold text-gray-900">{mockEngineers.filter(e => e.status === 'active').length}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Filters */}
+          <div className="card mb-8">
+            <h2 className="text-xl font-semibold text-gray-900 mb-6">Schedule Management</h2>
+            
+            <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+              {/* Filters */}
+              <div className="lg:col-span-3 grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-gray-700 text-sm font-medium mb-2">Schedule Type</label>
+                  <select 
+                    value={scheduleTypeFilter} 
+                    onChange={(e) => setScheduleTypeFilter(e.target.value as any)}
+                    className="input w-full"
+                  >
+                    <option value="all">All Schedules</option>
+                    <option value="standard">Weekend Off</option>
+                    <option value="rotation">Rotation Schedule</option>
+                  </select>
                 </div>
                 
-                <h3 className="font-semibold text-gray-900 mb-1">{engineer.name}</h3>
-                <p className="text-sm text-gray-600 mb-2">{engineer.team.name}</p>
-                <p className="text-xs text-gray-500 mb-2">{engineer.location.name}</p>
-                
-                <div className="flex items-center mb-3 text-xs text-gray-600">
-                  <Clock className="w-3 h-3 mr-1" />
-                  <span>
-                    {engineer.preferredShift === 'shift-a' ? 'Shift A (Day)' :
-                     engineer.preferredShift === 'shift-b' ? 'Shift B (Evening)' :
-                     engineer.preferredShift === 'shift-c' ? 'Shift C (Night)' :
-                     engineer.preferredShift === 'custom' ? `Custom (${engineer.customShiftStart || '06:00'}-${engineer.customShiftEnd || '16:00'})` :
-                     'Shift A (Day)' // Default
-                    }
-                  </span>
+                <div>
+                  <label className="block text-gray-700 text-sm font-medium mb-2">Team</label>
+                  <select 
+                    value={filters.teams.length === 0 ? '' : filters.teams[0]} 
+                    onChange={(e) => setFilters(prev => ({ ...prev, teams: [e.target.value] }))}
+                    className="input w-full"
+                  >
+                    <option value="">All Teams</option>
+                    {mockTeams.map(team => (
+                      <option key={team.id} value={team.id}>{team.name}</option>
+                    ))}
+                  </select>
                 </div>
                 
-                <div className="mt-3 flex items-center justify-between">
-                  <span className="text-xs text-gray-500">
-                    {engineer.skills.length} skills
+                <div>
+                  <label className="block text-gray-700 text-sm font-medium mb-2">Location</label>
+                  <select 
+                    value={filters.locations.length === 0 ? '' : filters.locations[0]} 
+                    onChange={(e) => setFilters(prev => ({ ...prev, locations: [e.target.value] }))}
+                    className="input w-full"
+                  >
+                    <option value="">All Locations</option>
+                    {mockLocations.map(location => (
+                      <option key={location.id} value={location.id}>{location.name}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              
+              {/* Action Button */}
+              <div className="flex items-end">
+                {isManager ? (
+                  <button 
+                    onClick={handleCreateShift}
+                    className="btn btn-primary w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-semibold py-3 px-6 rounded-xl shadow-lg transform hover:scale-105 transition-all duration-200"
+                  >
+                    <Plus className="w-5 h-5 mr-2" />
+                    Create New Shift
+                  </button>
+                ) : (
+                  <div className="w-full p-3 bg-gray-100 rounded-lg text-center text-gray-500 text-sm">
+                    <span className="flex items-center justify-center">
+                      <Clock className="w-4 h-4 mr-2" />
+                      View Only Access - Engineers
+                    </span>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Schedule Policy Information */}
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-8">
+            <h3 className="text-lg font-semibold text-blue-900 mb-3">Schedule Policies</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+              <div>
+                <div className="flex items-center mb-2">
+                  <span className="inline-block bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-xs font-medium mr-2">
+                    Standard Schedule
                   </span>
-                  <button className="text-blue-600 hover:text-blue-700 text-sm">
-                    View Schedule
+                  <span className="text-blue-900 font-medium">Weekend Off Policy</span>
+                </div>
+                <p className="text-blue-800">
+                  Engineers work Monday to Friday with Saturday and Sunday off. This is the default schedule for most team members.
+                </p>
+              </div>
+              <div>
+                <div className="flex items-center mb-2">
+                  <span className="inline-block bg-orange-100 text-orange-800 px-2 py-1 rounded-full text-xs font-medium mr-2">
+                    Rotation Schedule
+                  </span>
+                  <span className="text-blue-900 font-medium">Flexible Off Days</span>
+                </div>
+                <p className="text-blue-800">
+                  Engineers get 2 days off per week on a rotation basis. Some may work weekends but get weekdays off instead.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Engineers Grid/List */}
+          <div className="card">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xl font-semibold text-gray-900">Engineers Schedule</h2>
+              <div className="flex items-center space-x-2">
+                {isManager && (
+                  <button
+                    onClick={() => setShowAssignModal(true)}
+                    disabled={selectedEngineers.length === 0}
+                    className="btn btn-secondary disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Bulk Assign
+                  </button>
+                )}
+                <div className="flex rounded-lg border border-gray-300 p-1">
+                  <button
+                    onClick={() => setView('grid')}
+                    className={`px-3 py-1 rounded text-sm transition-colors ${
+                      view === 'grid' 
+                        ? 'bg-blue-600 text-white' 
+                        : 'text-gray-600 hover:text-gray-900'
+                    }`}
+                  >
+                    Grid
+                  </button>
+                  <button
+                    onClick={() => setView('list')}
+                    className={`px-3 py-1 rounded text-sm transition-colors ${
+                      view === 'list' 
+                        ? 'bg-blue-600 text-white' 
+                        : 'text-gray-600 hover:text-gray-900'
+                    }`}
+                  >
+                    List
                   </button>
                 </div>
               </div>
-            ))}
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    <input
-                      type="checkbox"
-                      onChange={(e) => {
-                        if (e.target.checked) {
-                          setSelectedEngineers(mockEngineers.slice(0, 12).map(e => e.id));
-                        } else {
-                          setSelectedEngineers([]);
-                        }
-                      }}
-                    />
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Engineer</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Team</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Location</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Preferred Shift</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {mockEngineers.slice(0, 12).map(engineer => (
-                  <tr key={engineer.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <input
-                        type="checkbox"
-                        checked={selectedEngineers.includes(engineer.id)}
-                        onChange={(e) => {
-                          if (e.target.checked) {
-                            setSelectedEngineers(prev => [...prev, engineer.id]);
-                          } else {
-                            setSelectedEngineers(prev => prev.filter(id => id !== engineer.id));
-                          }
-                        }}
-                      />
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
+            </div>
+
+                    {view === 'grid' ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {filteredEngineers.slice(0, 12).map(engineer => (
+                  <div key={engineer.id} className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
+                    <div className="flex items-center justify-between mb-3">
                       <div className="flex items-center">
-                        <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center mr-3">
-                          <User className="w-4 h-4 text-blue-600" />
-                        </div>
-                        <div>
-                          <div className="text-sm font-medium text-gray-900">{engineer.name}</div>
-                          <div className="text-sm text-gray-500">{engineer.email}</div>
+                        {isManager && (
+                          <input
+                            type="checkbox"
+                            checked={selectedEngineers.includes(engineer.id)}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setSelectedEngineers(prev => [...prev, engineer.id]);
+                              } else {
+                                setSelectedEngineers(prev => prev.filter(id => id !== engineer.id));
+                              }
+                            }}
+                            className="mr-3"
+                          />
+                        )}
+                        <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                          <User className="w-5 h-5 text-blue-600" />
                         </div>
                       </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{engineer.team.name}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{engineer.location.name}</td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center">
-                        <Clock className="w-4 h-4 text-gray-400 mr-2" />
-                        <span className="text-sm text-gray-900">
-                          {engineer.preferredShift === 'shift-a' ? 'Shift A (Day)' :
-                           engineer.preferredShift === 'shift-b' ? 'Shift B (Evening)' :
-                           engineer.preferredShift === 'shift-c' ? 'Shift C (Night)' :
-                           engineer.preferredShift === 'custom' ? `Custom (${engineer.customShiftStart || '06:00'}-${engineer.customShiftEnd || '16:00'})` :
-                           'Shift A (Day)' // Default
-                          }
-                        </span>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
                       <span className={`px-2 py-1 rounded-full text-xs font-medium ${
                         engineer.isOnCall 
                           ? 'bg-green-100 text-green-800' 
@@ -981,77 +1191,1522 @@ export default function EnterpriseScheduler() {
                       }`}>
                         {engineer.isOnCall ? 'On Call' : 'Available'}
                       </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                      <button className="text-blue-600 hover:text-blue-700 mr-3">View</button>
-                      <button className="text-indigo-600 hover:text-indigo-700">Assign</button>
-                    </td>
-                  </tr>
+                      <span className={`ml-2 px-2 py-1 rounded-full text-xs font-medium ${
+                        engineer.isRotationSchedule 
+                          ? 'bg-orange-100 text-orange-800' 
+                          : 'bg-blue-100 text-blue-800'
+                      }`}>
+                        {engineer.isRotationSchedule ? 'Rotation' : 'Weekend Off'}
+                      </span>
+                    </div>
+                    
+                    <h3 className="font-semibold text-gray-900 mb-1">{engineer.name}</h3>
+                    <p className="text-sm text-gray-600 mb-2">{engineer.team.name}</p>
+                    <p className="text-xs text-gray-500 mb-2">{engineer.location.name}</p>
+                    
+                    <div className="flex items-center mb-3 text-xs text-gray-600">
+                      <Clock className="w-3 h-3 mr-1" />
+                      <span>
+                        {engineer.preferredShift === 'shift-a' ? 'Shift A (Day)' :
+                         engineer.preferredShift === 'shift-b' ? 'Shift B (Evening)' :
+                         engineer.preferredShift === 'shift-c' ? 'Shift C (Night)' :
+                         engineer.preferredShift === 'custom' ? `Custom (${engineer.customShiftStart || '06:00'}-${engineer.customShiftEnd || '16:00'})` :
+                         'Shift A (Day)' // Default
+                        }
+                      </span>
+                    </div>
+                    
+                    <div className="mt-3 flex items-center justify-between">
+                      <span className="text-xs text-gray-500">
+                        {engineer.skills.length} skills
+                      </span>
+                      <button 
+                        onClick={() => handleViewSchedule(engineer)}
+                        className="text-blue-600 hover:text-blue-700 text-sm"
+                      >
+                        View Schedule
+                      </button>
+                    </div>
+                  </div>
                 ))}
-              </tbody>
-            </table>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        {isManager && (
+                          <input
+                            type="checkbox"
+                            onChange={(e) => {
+                                                      if (e.target.checked) {
+                          setSelectedEngineers(filteredEngineers.slice(0, 12).map(e => e.id));
+                        } else {
+                          setSelectedEngineers([]);
+                        }
+                            }}
+                          />
+                        )}
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Engineer</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Team</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Location</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Preferred Shift</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                    </tr>
+                  </thead>
+                                <tbody className="bg-white divide-y divide-gray-200">
+                {filteredEngineers.slice(0, 12).map(engineer => (
+                      <tr key={engineer.id} className="hover:bg-gray-50">
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          {isManager && (
+                            <input
+                              type="checkbox"
+                              checked={selectedEngineers.includes(engineer.id)}
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  setSelectedEngineers(prev => [...prev, engineer.id]);
+                                } else {
+                                  setSelectedEngineers(prev => prev.filter(id => id !== engineer.id));
+                                }
+                              }}
+                            />
+                          )}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="flex items-center">
+                            <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center mr-3">
+                              <User className="w-4 h-4 text-blue-600" />
+                            </div>
+                            <div>
+                              <div className="text-sm font-medium text-gray-900">{engineer.name}</div>
+                              <div className="text-sm text-gray-500">{engineer.email}</div>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{engineer.team.name}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{engineer.location.name}</td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="flex items-center">
+                            <Clock className="w-4 h-4 text-gray-400 mr-2" />
+                            <span className="text-sm text-gray-900">
+                              {engineer.preferredShift === 'shift-a' ? 'Shift A (Day)' :
+                               engineer.preferredShift === 'shift-b' ? 'Shift B (Evening)' :
+                               engineer.preferredShift === 'shift-c' ? 'Shift C (Night)' :
+                               engineer.preferredShift === 'custom' ? `Custom (${engineer.customShiftStart || '06:00'}-${engineer.customShiftEnd || '16:00'})` :
+                               'Shift A (Day)' // Default
+                              }
+                            </span>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                            engineer.isOnCall 
+                              ? 'bg-green-100 text-green-800' 
+                              : 'bg-gray-100 text-gray-800'
+                          }`}>
+                            {engineer.isOnCall ? 'On Call' : 'Available'}
+                          </span>
+                          <span className={`ml-2 px-2 py-1 rounded-full text-xs font-medium ${
+                            engineer.isRotationSchedule 
+                              ? 'bg-orange-100 text-orange-800' 
+                              : 'bg-blue-100 text-blue-800'
+                          }`}>
+                            {engineer.isRotationSchedule ? 'Rotation' : 'Weekend Off'}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                          <button 
+                            onClick={() => handleViewSchedule(engineer)}
+                            className="text-blue-600 hover:text-blue-700 mr-3"
+                          >
+                            View
+                          </button>
+                          {isManager && (
+                            <button 
+                              onClick={() => handleIndividualAssign(engineer)}
+                              className="text-indigo-600 hover:text-indigo-700"
+                            >
+                              Assign
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
-        )}
-      </div>
 
-      {/* Bulk Assignment Modal */}
-      {showAssignModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-2xl p-6 max-w-2xl w-full mx-4">
-            <h2 className="text-xl font-bold mb-4">Bulk Shift Assignment</h2>
-            <p className="text-gray-600 mb-4">
-              {selectedEngineers.length > 0 
-                ? `Assigning shifts to ${selectedEngineers.length} selected engineers`
-                : 'Select engineers from the list to assign shifts'
-              }
-            </p>
-            
-            <div className="space-y-4">
+          {/* Empty State */}
+          {filteredEngineers.length === 0 && (
+            <div className="text-center py-12 bg-gray-50 rounded-lg">
+              <Users className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+              <h3 className="text-lg font-medium text-gray-900 mb-2">No Engineers Found</h3>
+              <p className="text-gray-600 mb-4">
+                {!isManager 
+                  ? "You have view access to all engineer schedules. Try adjusting the filters above."
+                  : "No engineers match your current filter criteria. Try adjusting the filters above."
+                }
+              </p>
+              <p className="text-sm text-gray-500">
+                Total engineers in system: {mockEngineers.length}
+              </p>
+            </div>
+          )}
+
+          {/* Bulk Assignment Modal */}
+          {isManager && showAssignModal && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+              <div className="bg-white rounded-2xl p-6 max-w-2xl w-full mx-4">
+                <h2 className="text-xl font-bold mb-4">Bulk Shift Assignment</h2>
+                <p className="text-gray-600 mb-4">
+                  {selectedEngineers.length > 0 
+                    ? `Assigning shifts to ${selectedEngineers.length} selected engineers`
+                    : 'Select engineers from the list to assign shifts'
+                  }
+                </p>
+                
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Date Range</label>
+                    <div className="grid grid-cols-2 gap-4">
+                      <input type="date" className="border border-gray-300 rounded-lg p-2" />
+                      <input type="date" className="border border-gray-300 rounded-lg p-2" />
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Shift Type</label>
+                    <select className="w-full border border-gray-300 rounded-lg p-2">
+                      {mockShiftTypes.map(shift => (
+                        <option key={shift.id} value={shift.id}>{shift.name} ({shift.startTime} - {shift.endTime})</option>
+                      ))}
+                    </select>
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Location</label>
+                    <select className="w-full border border-gray-300 rounded-lg p-2">
+                      {mockLocations.map(location => (
+                        <option key={location.id} value={location.id}>{location.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+                
+                <div className="flex justify-end space-x-3 mt-6">
+                  <button
+                    onClick={() => setShowAssignModal(false)}
+                    className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleBulkAssign}
+                    disabled={selectedEngineers.length === 0}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Assign Shifts
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Create Shift Modal */}
+          {isManager && showCreateShiftModal && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+              <div className="bg-white rounded-2xl p-6 max-w-2xl w-full mx-4">
+                <h2 className="text-xl font-bold mb-4">Create New Shift</h2>
+                
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Shift Title</label>
+                    <input 
+                      type="text" 
+                      className="w-full border border-gray-300 rounded-lg p-2" 
+                      value={newShiftForm.title}
+                      onChange={(e) => setNewShiftForm(prev => ({ ...prev, title: e.target.value }))}
+                      placeholder="Enter shift title"
+                    />
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Start Date</label>
+                      <input 
+                        type="date" 
+                        className="w-full border border-gray-300 rounded-lg p-2" 
+                        value={newShiftForm.startDate}
+                        onChange={(e) => setNewShiftForm(prev => ({ ...prev, startDate: e.target.value }))}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">End Date</label>
+                      <input 
+                        type="date" 
+                        className="w-full border border-gray-300 rounded-lg p-2" 
+                        value={newShiftForm.endDate}
+                        onChange={(e) => setNewShiftForm(prev => ({ ...prev, endDate: e.target.value }))}
+                      />
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Shift Type</label>
+                    <select 
+                      className="w-full border border-gray-300 rounded-lg p-2"
+                      value={newShiftForm.shiftType}
+                      onChange={(e) => setNewShiftForm(prev => ({ ...prev, shiftType: e.target.value }))}
+                    >
+                      <option value="">Select shift type</option>
+                      {mockShiftTypes.map(shift => (
+                        <option key={shift.id} value={shift.id}>{shift.name} ({shift.startTime} - {shift.endTime})</option>
+                      ))}
+                    </select>
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Location</label>
+                    <select 
+                      className="w-full border border-gray-300 rounded-lg p-2"
+                      value={newShiftForm.location}
+                      onChange={(e) => setNewShiftForm(prev => ({ ...prev, location: e.target.value }))}
+                    >
+                      <option value="">Select location</option>
+                      {mockLocations.map(location => (
+                        <option key={location.id} value={location.id}>{location.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Assign to Engineer</label>
+                    <select 
+                      className="w-full border border-gray-300 rounded-lg p-2"
+                      value={newShiftForm.assignee}
+                      onChange={(e) => setNewShiftForm(prev => ({ ...prev, assignee: e.target.value }))}
+                    >
+                      <option value="">Select engineer</option>
+                      {getAccessibleEngineers().map(engineer => (
+                        <option key={engineer.id} value={engineer.id}>{engineer.name} - {engineer.employeeId}</option>
+                      ))}
+                    </select>
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Description</label>
+                    <textarea 
+                      className="w-full border border-gray-300 rounded-lg p-2" 
+                      rows={3}
+                      value={newShiftForm.description}
+                      onChange={(e) => setNewShiftForm(prev => ({ ...prev, description: e.target.value }))}
+                      placeholder="Enter shift description"
+                    />
+                  </div>
+                </div>
+                
+                <div className="flex justify-end space-x-3 mt-6">
+                  <button
+                    onClick={() => setShowCreateShiftModal(false)}
+                    className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleSaveNewShift}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                  >
+                    Create Shift
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* View Schedule Modal */}
+          {showViewScheduleModal && selectedEngineerForView && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+              <div className="bg-white rounded-2xl p-6 max-w-4xl w-full mx-4 max-h-[80vh] overflow-y-auto">
+                <div className="flex items-center justify-between mb-6">
+                  <h2 className="text-xl font-bold">Schedule for {selectedEngineerForView.name}</h2>
+                  <button
+                    onClick={() => setShowViewScheduleModal(false)}
+                    className="text-gray-400 hover:text-gray-600"
+                  >
+                    ✕
+                  </button>
+                </div>
+                
+                {/* Engineer Info */}
+                <div className="bg-gray-50 rounded-lg p-4 mb-6">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">Employee ID</label>
+                      <p className="text-sm text-gray-900">{selectedEngineerForView.employeeId}</p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">Team</label>
+                      <p className="text-sm text-gray-900">{selectedEngineerForView.team.name}</p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">Location</label>
+                      <p className="text-sm text-gray-900">{selectedEngineerForView.location.name}</p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">Preferred Shift</label>
+                      <p className="text-sm text-gray-900">
+                        {selectedEngineerForView.preferredShift === 'shift-a' ? 'Shift A (06:00-16:00)' :
+                         selectedEngineerForView.preferredShift === 'shift-b' ? 'Shift B (14:00-00:00)' :
+                         selectedEngineerForView.preferredShift === 'shift-c' ? 'Shift C (22:00-08:00)' :
+                         'Custom Shift'}
+                      </p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">Status</label>
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                        selectedEngineerForView.isOnCall 
+                          ? 'bg-green-100 text-green-800' 
+                          : 'bg-gray-100 text-gray-800'
+                      }`}>
+                        {selectedEngineerForView.isOnCall ? 'On Call' : 'Available'}
+                      </span>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">Experience</label>
+                      <p className="text-sm text-gray-900">{selectedEngineerForView.experience} years</p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">Schedule Type</label>
+                      <div className="flex items-center space-x-2">
+                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                          selectedEngineerForView.isRotationSchedule 
+                            ? 'bg-orange-100 text-orange-800' 
+                            : 'bg-blue-100 text-blue-800'
+                        }`}>
+                          {selectedEngineerForView.isRotationSchedule ? 'Rotation Schedule' : 'Standard Schedule'}
+                        </span>
+                        {selectedEngineerForView.worksWeekends && (
+                          <span className="px-2 py-1 bg-yellow-100 text-yellow-800 rounded-full text-xs font-medium">
+                            Works Weekends
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">Off Days</label>
+                      <p className="text-sm text-gray-900">
+                        {selectedEngineerForView.rotationOffDays?.map(day => 
+                          ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][day]
+                        ).join(', ') || 'Not set'}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Weekly Schedule */}
+                <div className="mb-6">
+                  <h3 className="text-lg font-semibold mb-4">This Week's Schedule</h3>
+                  <div className="grid grid-cols-7 gap-2">
+                    {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day, index) => {
+                      const isOffDay = selectedEngineerForView.rotationOffDays?.includes(index) || 
+                                       (!selectedEngineerForView.isRotationSchedule && (index === 0 || index === 6));
+                      
+                      return (
+                        <div key={day} className="text-center">
+                          <div className="text-sm font-medium text-gray-700 mb-2">{day}</div>
+                          <div className={`border rounded-lg p-2 min-h-[80px] ${
+                            isOffDay 
+                              ? 'bg-red-50 border-red-200' 
+                              : 'bg-blue-50 border-blue-200'
+                          }`}>
+                            {isOffDay ? (
+                              <div className="text-xs text-red-800 font-medium">OFF DAY</div>
+                            ) : (
+                              <>
+                                <div className="text-xs text-blue-800 font-medium">
+                                  {selectedEngineerForView.preferredShift === 'shift-a' ? '06:00-16:00' :
+                                   selectedEngineerForView.preferredShift === 'shift-b' ? '14:00-00:00' :
+                                   selectedEngineerForView.preferredShift === 'shift-c' ? '22:00-08:00' :
+                                   '06:00-16:00'}
+                                </div>
+                                <div className="text-xs text-gray-600 mt-1">
+                                  {selectedEngineerForView.team.name}
+                                </div>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  
+                  {/* Schedule Policy Info */}
+                  <div className="mt-4 p-3 bg-gray-50 rounded-lg">
+                    <h4 className="text-sm font-medium text-gray-700 mb-2">Schedule Policy</h4>
+                    <div className="text-xs text-gray-600">
+                      {selectedEngineerForView.isRotationSchedule ? (
+                        <div>
+                          <span className="inline-block bg-orange-100 text-orange-800 px-2 py-1 rounded-full mr-2">
+                            Rotation Schedule
+                          </span>
+                          <span>2 days off per week (rotational)</span>
+                          {selectedEngineerForView.worksWeekends && (
+                            <span className="ml-2 text-orange-600">(Works weekends)</span>
+                          )}
+                        </div>
+                      ) : (
+                        <div>
+                          <span className="inline-block bg-blue-100 text-blue-800 px-2 py-1 rounded-full mr-2">
+                            Standard Schedule
+                          </span>
+                          <span>Weekends off (Saturday & Sunday)</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Skills */}
+                <div className="mb-6">
+                  <h3 className="text-lg font-semibold mb-4">Skills</h3>
+                  <div className="flex flex-wrap gap-2">
+                    {selectedEngineerForView.skills.map((skill, index) => (
+                      <span key={index} className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm">
+                        {skill}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="flex justify-end">
+                  <button
+                    onClick={() => setShowViewScheduleModal(false)}
+                    className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
+                  >
+                    Close
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Individual Assignment Modal */}
+          {isManager && showIndividualAssignModal && selectedEngineerForAssign && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+              <div className="bg-white rounded-2xl p-6 max-w-2xl w-full mx-4">
+                <h2 className="text-xl font-bold mb-4">Assign Shift to {selectedEngineerForAssign.name}</h2>
+                
+                {/* Engineer Info */}
+                <div className="bg-gray-50 rounded-lg p-4 mb-6">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">Employee ID</label>
+                      <p className="text-sm text-gray-900">{selectedEngineerForAssign.employeeId}</p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">Current Team</label>
+                      <p className="text-sm text-gray-900">{selectedEngineerForAssign.team.name}</p>
+                    </div>
+                    <div className="col-span-2">
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Schedule & Off Days</label>
+                      <div className="flex items-center space-x-4">
+                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                          selectedEngineerForAssign.isRotationSchedule 
+                            ? 'bg-orange-100 text-orange-800' 
+                            : 'bg-blue-100 text-blue-800'
+                        }`}>
+                          {selectedEngineerForAssign.isRotationSchedule ? 'Rotation Schedule' : 'Standard Schedule'}
+                        </span>
+                        <div className="text-sm text-gray-600">
+                          <strong>Off Days:</strong> {selectedEngineerForAssign.rotationOffDays?.map(day => 
+                            ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][day]
+                          ).join(', ') || 'Not set'}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                
+                {/* Assignment Form */}
+                <div className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Start Date</label>
+                      <input 
+                        type="date" 
+                        className="w-full border border-gray-300 rounded-lg p-2" 
+                        value={newShiftForm.startDate}
+                        onChange={(e) => setNewShiftForm(prev => ({ ...prev, startDate: e.target.value }))}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">End Date</label>
+                      <input 
+                        type="date" 
+                        className="w-full border border-gray-300 rounded-lg p-2" 
+                        value={newShiftForm.endDate}
+                        onChange={(e) => setNewShiftForm(prev => ({ ...prev, endDate: e.target.value }))}
+                      />
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Shift Type</label>
+                    <select 
+                      className="w-full border border-gray-300 rounded-lg p-2"
+                      value={newShiftForm.shiftType}
+                      onChange={(e) => setNewShiftForm(prev => ({ ...prev, shiftType: e.target.value }))}
+                    >
+                      <option value="">Select shift type</option>
+                      {mockShiftTypes.map(shift => (
+                        <option key={shift.id} value={shift.id}>{shift.name} ({shift.startTime} - {shift.endTime})</option>
+                      ))}
+                    </select>
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Location</label>
+                    <select 
+                      className="w-full border border-gray-300 rounded-lg p-2"
+                      value={newShiftForm.location}
+                      onChange={(e) => setNewShiftForm(prev => ({ ...prev, location: e.target.value }))}
+                    >
+                      <option value="">Select location</option>
+                      {mockLocations.map(location => (
+                        <option key={location.id} value={location.id}>{location.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Notes</label>
+                    <textarea 
+                      className="w-full border border-gray-300 rounded-lg p-2" 
+                      rows={3}
+                      value={newShiftForm.description}
+                      onChange={(e) => setNewShiftForm(prev => ({ ...prev, description: e.target.value }))}
+                      placeholder="Add any notes for this assignment"
+                    />
+                  </div>
+                </div>
+                
+                <div className="flex justify-end space-x-3 mt-6">
+                  <button
+                    onClick={() => setShowIndividualAssignModal(false)}
+                    className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleSaveIndividualAssignment}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                  >
+                    Assign Shift
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+        </>
+      ) : (
+        <>
+          {/* Engineer Directory View */}
+          {/* Header and Stats Section with Background */}
+          <div className="bg-gradient-to-br from-blue-50 to-indigo-100 rounded-xl p-6 mb-8">
+            {/* Header */}
+            <div className="flex items-center justify-between mb-8">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Date Range</label>
-                <div className="grid grid-cols-2 gap-4">
-                  <input type="date" className="border border-gray-300 rounded-lg p-2" />
-                  <input type="date" className="border border-gray-300 rounded-lg p-2" />
+                <h1 className="text-3xl font-bold text-gray-900 mb-2">Engineer Directory</h1>
+                <p className="text-gray-600">View and manage CIS engineers</p>
+              </div>
+              
+              {/* My Shift Display */}
+              {user?.engineerId && (
+                <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 min-w-[220px]">
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-600 text-sm">My Shift:</span>
+                    <span className="font-medium text-indigo-600">
+                      {(() => {
+                        const storedPrefs = localStorage.getItem(`shift_prefs_${user.engineerId}`);
+                        if (storedPrefs) {
+                          try {
+                            const prefs = JSON.parse(storedPrefs);
+                            if (prefs.preferredShift === 'shift-a') return '06:00 - 16:00';
+                            if (prefs.preferredShift === 'shift-b') return '14:00 - 00:00';
+                            if (prefs.preferredShift === 'shift-c') return '22:00 - 08:00';
+                            if (prefs.preferredShift === 'custom') return `${prefs.shiftStartTime || '06:00'} - ${prefs.shiftEndTime || '16:00'}`;
+                          } catch (e) {
+                            // ignore error
+                          }
+                        }
+                        return '06:00 - 16:00';
+                      })()}
+                    </span>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Quick Stats */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+              <div className="card">
+                <div className="flex items-center">
+                  <div className="p-3 bg-blue-100 rounded-lg">
+                    <Users className="w-6 h-6 text-blue-600" />
+                  </div>
+                  <div className="ml-4">
+                    <h3 className="text-sm font-medium text-gray-500">Total Engineers</h3>
+                    <p className="text-2xl font-semibold text-gray-900">{mockEngineers.length}</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="card">
+                <div className="flex items-center">
+                  <div className="p-3 bg-green-100 rounded-lg">
+                    <UserCheck className="w-6 h-6 text-green-600" />
+                  </div>
+                  <div className="ml-4">
+                    <h3 className="text-sm font-medium text-gray-500">Active</h3>
+                    <p className="text-2xl font-semibold text-gray-900">{mockEngineers.filter(e => e.status === 'active').length}</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="card">
+                <div className="flex items-center">
+                  <div className="p-3 bg-purple-100 rounded-lg">
+                    <MapPin className="w-6 h-6 text-purple-600" />
+                  </div>
+                  <div className="ml-4">
+                    <h3 className="text-sm font-medium text-gray-500">Total Locations</h3>
+                    <p className="text-2xl font-semibold text-gray-900">{mockLocations.length}</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="card">
+                <div className="flex items-center">
+                  <div className="p-3 bg-yellow-100 rounded-lg">
+                    <Briefcase className="w-6 h-6 text-yellow-600" />
+                  </div>
+                  <div className="ml-4">
+                    <h3 className="text-sm font-medium text-gray-500">Total Teams</h3>
+                    <p className="text-2xl font-semibold text-gray-900">{mockTeams.length}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Filters */}
+          <div className="card mb-8">
+            <h2 className="text-xl font-semibold text-gray-900 mb-6">Filter Engineers</h2>
+            
+            <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+              {/* Filters */}
+              <div className="lg:col-span-3 grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-gray-700 text-sm font-medium mb-2">Search</label>
+                  <input 
+                    type="text" 
+                    placeholder="Search engineers by name, ID, or email" 
+                    className="input w-full" 
+                    value={directorySearchTerm}
+                    onChange={(e) => setDirectorySearchTerm(e.target.value)}
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-gray-700 text-sm font-medium mb-2">Team</label>
+                  <select 
+                    value={directoryFilters.team} 
+                    onChange={(e) => setDirectoryFilters(prev => ({ ...prev, team: e.target.value }))}
+                    className="input w-full"
+                  >
+                    <option value="">All Teams</option>
+                    {mockTeams.map(team => (
+                      <option key={team.id} value={team.id}>{team.name}</option>
+                    ))}
+                  </select>
+                </div>
+                
+                <div>
+                  <label className="block text-gray-700 text-sm font-medium mb-2">Location</label>
+                  <select 
+                    value={directoryFilters.location} 
+                    onChange={(e) => setDirectoryFilters(prev => ({ ...prev, location: e.target.value }))}
+                    className="input w-full"
+                  >
+                    <option value="">All Locations</option>
+                    {mockLocations.map(location => (
+                      <option key={location.id} value={location.id}>{location.name}</option>
+                    ))}
+                  </select>
                 </div>
               </div>
               
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Shift Type</label>
-                <select className="w-full border border-gray-300 rounded-lg p-2">
-                  {mockShiftTypes.map(shift => (
-                    <option key={shift.id} value={shift.id}>{shift.name} ({shift.startTime} - {shift.endTime})</option>
-                  ))}
-                </select>
+              {/* Action Button */}
+              <div className="flex items-end">
+                <button
+                  onClick={() => setShowDirectoryFilters(!showDirectoryFilters)}
+                  className="btn btn-secondary w-full"
+                >
+                  <Filter className="w-4 h-4 mr-2" />
+                  {showDirectoryFilters ? 'Hide Filters' : 'Show Filters'}
+                </button>
               </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Location</label>
-                <select className="w-full border border-gray-300 rounded-lg p-2">
-                  {mockLocations.map(location => (
-                    <option key={location.id} value={location.id}>{location.name}</option>
-                  ))}
-                </select>
-              </div>
-            </div>
-            
-            <div className="flex justify-end space-x-3 mt-6">
-              <button
-                onClick={() => setShowAssignModal(false)}
-                className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleBulkAssign}
-                disabled={selectedEngineers.length === 0}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                Assign Shifts
-              </button>
             </div>
           </div>
-        </div>
+
+          {/* Directory Grid/List */}
+          <div className="card">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xl font-semibold text-gray-900">Engineers List</h2>
+              <div className="flex items-center space-x-2">
+                <div className="flex rounded-lg border border-gray-300 p-1">
+                  <button
+                    onClick={() => setDirectoryView('grid')}
+                    className={`px-3 py-1 rounded text-sm transition-colors ${
+                      directoryView === 'grid' 
+                        ? 'bg-blue-600 text-white' 
+                        : 'text-gray-600 hover:text-gray-900'
+                    }`}
+                  >
+                    Grid
+                  </button>
+                  <button
+                    onClick={() => setDirectoryView('list')}
+                    className={`px-3 py-1 rounded text-sm transition-colors ${
+                      directoryView === 'list' 
+                        ? 'bg-blue-600 text-white' 
+                        : 'text-gray-600 hover:text-gray-900'
+                    }`}
+                  >
+                    List
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {showDirectoryFilters && (
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                <div>
+                  <label className="block text-gray-700 text-sm font-medium mb-2">Status</label>
+                  <select 
+                    value={directoryFilters.status} 
+                    onChange={(e) => setDirectoryFilters(prev => ({ ...prev, status: e.target.value }))}
+                    className="input w-full"
+                  >
+                    <option value="">All Statuses</option>
+                    <option value="active">Active</option>
+                    <option value="on_call">On Call</option>
+                    <option value="inactive">Inactive</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-gray-700 text-sm font-medium mb-2">Sort By</label>
+                  <select 
+                    value={directorySortBy} 
+                    onChange={(e) => setDirectorySortBy(e.target.value as any)}
+                    className="input w-full"
+                  >
+                    <option value="name">Name</option>
+                    <option value="experience">Experience</option>
+                    <option value="joinDate">Join Date</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-gray-700 text-sm font-medium mb-2">Sort Order</label>
+                  <select 
+                    value={directorySortOrder} 
+                    onChange={(e) => setDirectorySortOrder(e.target.value as any)}
+                    className="input w-full"
+                  >
+                    <option value="asc">Ascending</option>
+                    <option value="desc">Descending</option>
+                  </select>
+                </div>
+              </div>
+            )}
+
+            {directoryView === 'grid' ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                {getDirectoryFilteredEngineers().map(engineer => (
+                  <div key={engineer.id} className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center">
+                        <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                          <User className="w-5 h-5 text-blue-600" />
+                        </div>
+                        <div className="ml-3">
+                          <h3 className="text-lg font-semibold text-gray-900">{engineer.name}</h3>
+                          <p className="text-sm text-gray-600">{engineer.employeeId}</p>
+                          <p className="text-sm text-gray-500">{engineer.email}</p>
+                        </div>
+                      </div>
+                      <div className="flex flex-col space-y-1">
+                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                          engineer.isOnCall 
+                            ? 'bg-green-100 text-green-800' 
+                            : 'bg-gray-100 text-gray-800'
+                        }`}>
+                          {engineer.isOnCall ? 'On Call' : 'Available'}
+                        </span>
+                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                          engineer.isRotationSchedule 
+                            ? 'bg-orange-100 text-orange-800' 
+                            : 'bg-blue-100 text-blue-800'
+                        }`}>
+                          {engineer.isRotationSchedule ? 'Rotation' : 'Weekend Off'}
+                        </span>
+                      </div>
+                    </div>
+                    
+                    <p className="text-sm text-gray-600 mb-2">Team: {engineer.team.name}</p>
+                    <p className="text-sm text-gray-600 mb-2">Location: {engineer.location.name}</p>
+                    <p className="text-sm text-gray-600 mb-2">Experience: {engineer.experience} years</p>
+                    <p className="text-sm text-gray-600 mb-2">Skills: {engineer.skills.join(', ')}</p>
+                    
+                                         <div className="mt-3 flex items-center justify-between">
+                       <span className="text-xs text-gray-500">
+                         {engineer.productionMetrics.ticketsResolved} tickets resolved
+                       </span>
+                       <div className="flex space-x-2">
+                         <button 
+                           onClick={() => handleViewProfile(engineer)}
+                           className="text-indigo-600 hover:text-indigo-700 text-sm"
+                         >
+                           View Profile
+                         </button>
+                         {isManager && (
+                           <button 
+                             onClick={() => handleUpdateProduction(engineer)}
+                             className="text-blue-600 hover:text-blue-700 text-sm"
+                           >
+                             Update Production
+                           </button>
+                         )}
+                       </div>
+                     </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Employee ID</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Team</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Location</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {getDirectoryFilteredEngineers().map(engineer => (
+                      <tr key={engineer.id} className="hover:bg-gray-50">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{engineer.name}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{engineer.employeeId}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{engineer.email}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{engineer.team.name}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{engineer.location.name}</td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="flex flex-col space-y-1">
+                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                              engineer.isOnCall 
+                                ? 'bg-green-100 text-green-800' 
+                                : 'bg-gray-100 text-gray-800'
+                            }`}>
+                              {engineer.isOnCall ? 'On Call' : 'Available'}
+                            </span>
+                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                              engineer.isRotationSchedule 
+                                ? 'bg-orange-100 text-orange-800' 
+                                : 'bg-blue-100 text-blue-800'
+                            }`}>
+                              {engineer.isRotationSchedule ? 'Rotation' : 'Weekend Off'}
+                            </span>
+                          </div>
+                        </td>
+                                                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                           <button 
+                             onClick={() => handleViewProfile(engineer)}
+                             className="text-indigo-600 hover:text-indigo-700 mr-3"
+                           >
+                             View Profile
+                           </button>
+                           {isManager && (
+                             <button 
+                               onClick={() => handleUpdateProduction(engineer)}
+                               className="text-blue-600 hover:text-blue-700 mr-3"
+                             >
+                               Update Production
+                             </button>
+                           )}
+                         </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            {/* Empty State for Directory */}
+            {getDirectoryFilteredEngineers().length === 0 && (
+              <div className="text-center py-12 bg-gray-50 rounded-lg">
+                <Users className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                <h3 className="text-lg font-medium text-gray-900 mb-2">No Engineers Found</h3>
+                <p className="text-gray-600 mb-4">
+                  No engineers match your current filter criteria. Try adjusting the filters above.
+                </p>
+                <p className="text-sm text-gray-500">
+                  Total engineers in system: {mockEngineers.length}
+                </p>
+              </div>
+            )}
+          </div>
+
+          {/* Engineer Profile Modal */}
+          {showEngineerProfileModal && selectedEngineerForProfile && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+              <div className="bg-white rounded-2xl p-6 max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+                <div className="flex items-center justify-between mb-6">
+                  <h2 className="text-2xl font-bold text-gray-900">Engineer Profile</h2>
+                  <button
+                    onClick={() => setShowEngineerProfileModal(false)}
+                    className="text-gray-400 hover:text-gray-600 text-xl"
+                  >
+                    ✕
+                  </button>
+                </div>
+                
+                {/* Profile Header */}
+                <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-6 mb-6">
+                  <div className="flex items-center space-x-6">
+                    <div className="w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center">
+                      <User className="w-10 h-10 text-blue-600" />
+                    </div>
+                    <div className="flex-1">
+                      <h3 className="text-2xl font-bold text-gray-900">{selectedEngineerForProfile.name}</h3>
+                      <p className="text-lg text-gray-600">{selectedEngineerForProfile.employeeId}</p>
+                      <div className="flex space-x-3 mt-2">
+                        <span className={`px-3 py-1 rounded-full text-sm font-medium ${
+                          selectedEngineerForProfile.isOnCall 
+                            ? 'bg-green-100 text-green-800' 
+                            : 'bg-gray-100 text-gray-800'
+                        }`}>
+                          {selectedEngineerForProfile.isOnCall ? 'On Call' : 'Available'}
+                        </span>
+                        <span className={`px-3 py-1 rounded-full text-sm font-medium ${
+                          selectedEngineerForProfile.isRotationSchedule 
+                            ? 'bg-orange-100 text-orange-800' 
+                            : 'bg-blue-100 text-blue-800'
+                        }`}>
+                          {selectedEngineerForProfile.isRotationSchedule ? 'Rotation Schedule' : 'Weekend Off'}
+                        </span>
+                        {selectedEngineerForProfile.isTeamLead && (
+                          <span className="px-3 py-1 bg-purple-100 text-purple-800 rounded-full text-sm font-medium">
+                            Team Lead
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Profile Content */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  {/* Basic Information */}
+                  <div className="bg-gray-50 rounded-lg p-6">
+                    <h4 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                      <User className="w-5 h-5 mr-2" />
+                      Basic Information
+                    </h4>
+                    <div className="space-y-3">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700">Full Name</label>
+                        <p className="text-sm text-gray-900">{selectedEngineerForProfile.name}</p>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700">Employee ID</label>
+                        <p className="text-sm text-gray-900">{selectedEngineerForProfile.employeeId}</p>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700">Email</label>
+                        <p className="text-sm text-gray-900">{selectedEngineerForProfile.email}</p>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700">Phone</label>
+                        <p className="text-sm text-gray-900">{selectedEngineerForProfile.phone}</p>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700">Join Date</label>
+                        <p className="text-sm text-gray-900">{new Date(selectedEngineerForProfile.joinDate).toLocaleDateString()}</p>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700">Experience</label>
+                        <p className="text-sm text-gray-900">{selectedEngineerForProfile.experience} years</p>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700">Status</label>
+                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                          selectedEngineerForProfile.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
+                        }`}>
+                          {selectedEngineerForProfile.status.toUpperCase()}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Organization Information */}
+                  <div className="bg-gray-50 rounded-lg p-6">
+                    <h4 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                      <Building className="w-5 h-5 mr-2" />
+                      Organization
+                    </h4>
+                    <div className="space-y-3">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700">Team</label>
+                        <p className="text-sm text-gray-900">{selectedEngineerForProfile.team.name}</p>
+                        <p className="text-xs text-gray-500">{selectedEngineerForProfile.team.description}</p>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700">Department</label>
+                        <p className="text-sm text-gray-900">{selectedEngineerForProfile.department.name}</p>
+                        <p className="text-xs text-gray-500">{selectedEngineerForProfile.department.description}</p>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700">Location</label>
+                        <p className="text-sm text-gray-900">{selectedEngineerForProfile.location.name}</p>
+                        <p className="text-xs text-gray-500">{selectedEngineerForProfile.location.city}, {selectedEngineerForProfile.location.state}</p>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700">Role</label>
+                        <div className="flex items-center space-x-2">
+                          <span className="text-sm text-gray-900">Engineer</span>
+                          {selectedEngineerForProfile.isTeamLead && (
+                            <span className="px-2 py-1 bg-purple-100 text-purple-800 rounded-full text-xs font-medium">
+                              Team Lead
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Skills & Certifications */}
+                  <div className="bg-gray-50 rounded-lg p-6">
+                    <h4 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                      <Award className="w-5 h-5 mr-2" />
+                      Skills & Certifications
+                    </h4>
+                    <div className="space-y-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Technical Skills</label>
+                        <div className="flex flex-wrap gap-2">
+                          {selectedEngineerForProfile.skills.map((skill, index) => (
+                            <span key={index} className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-xs font-medium">
+                              {skill}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Certifications</label>
+                        <div className="flex flex-wrap gap-2">
+                          {selectedEngineerForProfile.certifications.map((cert, index) => (
+                            <span key={index} className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-xs font-medium">
+                              {cert}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Schedule Information */}
+                  <div className="bg-gray-50 rounded-lg p-6">
+                    <h4 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                      <Clock className="w-5 h-5 mr-2" />
+                      Schedule Information
+                    </h4>
+                    <div className="space-y-3">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700">Preferred Shift</label>
+                        <p className="text-sm text-gray-900">
+                          {selectedEngineerForProfile.preferredShift === 'shift-a' ? 'Shift A (06:00-16:00)' :
+                           selectedEngineerForProfile.preferredShift === 'shift-b' ? 'Shift B (14:00-00:00)' :
+                           selectedEngineerForProfile.preferredShift === 'shift-c' ? 'Shift C (22:00-08:00)' :
+                           selectedEngineerForProfile.preferredShift === 'custom' ? 
+                           `Custom (${selectedEngineerForProfile.customShiftStart || '06:00'}-${selectedEngineerForProfile.customShiftEnd || '16:00'})` :
+                           'Shift A (06:00-16:00)'}
+                        </p>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700">Schedule Type</label>
+                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                          selectedEngineerForProfile.isRotationSchedule 
+                            ? 'bg-orange-100 text-orange-800' 
+                            : 'bg-blue-100 text-blue-800'
+                        }`}>
+                          {selectedEngineerForProfile.isRotationSchedule ? 'Rotation Schedule' : 'Standard Schedule'}
+                        </span>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700">Off Days</label>
+                        <p className="text-sm text-gray-900">
+                          {selectedEngineerForProfile.rotationOffDays?.map(day => 
+                            ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][day]
+                          ).join(', ') || 'Not set'}
+                        </p>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700">Weekly Hours</label>
+                        <p className="text-sm text-gray-900">{selectedEngineerForProfile.weeklyHours || 40} hours</p>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700">Flexible Timing</label>
+                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                          selectedEngineerForProfile.isFlexibleTiming 
+                            ? 'bg-green-100 text-green-800' 
+                            : 'bg-gray-100 text-gray-800'
+                        }`}>
+                          {selectedEngineerForProfile.isFlexibleTiming ? 'Yes' : 'No'}
+                        </span>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700">Overtime Preference</label>
+                        <p className="text-sm text-gray-900 capitalize">{selectedEngineerForProfile.overtimePreference || 'None'}</p>
+                      </div>
+                    </div>
+                  </div>
+
+                                     {/* Current Shift Details - Manager Only */}
+                   {isManager && (
+                     <div className="bg-gray-50 rounded-lg p-6 lg:col-span-2">
+                       <h4 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                         <Calendar className="w-5 h-5 mr-2" />
+                         Current Week Schedule
+                       </h4>
+                     <div className="grid grid-cols-7 gap-2 mb-4">
+                       {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day, index) => {
+                         const isOffDay = selectedEngineerForProfile.rotationOffDays?.includes(index);
+                         const currentShift = (() => {
+                           if (selectedEngineerForProfile.preferredShift === 'shift-a') return '06:00-16:00';
+                           if (selectedEngineerForProfile.preferredShift === 'shift-b') return '14:00-00:00';
+                           if (selectedEngineerForProfile.preferredShift === 'shift-c') return '22:00-08:00';
+                           if (selectedEngineerForProfile.preferredShift === 'custom') {
+                             return `${selectedEngineerForProfile.customShiftStart || '06:00'}-${selectedEngineerForProfile.customShiftEnd || '16:00'}`;
+                           }
+                           return '06:00-16:00';
+                         })();
+                         
+                         return (
+                           <div key={day} className={`text-center p-3 rounded-lg border ${
+                             isOffDay 
+                               ? 'bg-red-50 border-red-200 text-red-800' 
+                               : 'bg-green-50 border-green-200 text-green-800'
+                           }`}>
+                             <div className="font-semibold text-sm">{day}</div>
+                             <div className="text-xs mt-1">
+                               {isOffDay ? 'OFF' : currentShift}
+                             </div>
+                           </div>
+                         );
+                       })}
+                     </div>
+                     
+                     {/* Shift Assignment Details */}
+                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                       <div className="bg-white rounded-lg p-4 border">
+                         <h5 className="font-semibold text-gray-900 mb-2">Current Assignment</h5>
+                         <p className="text-sm text-gray-600">
+                           {(() => {
+                             if (selectedEngineerForProfile.preferredShift === 'shift-a') return 'Morning Shift (06:00-16:00)';
+                             if (selectedEngineerForProfile.preferredShift === 'shift-b') return 'Evening Shift (14:00-00:00)';
+                             if (selectedEngineerForProfile.preferredShift === 'shift-c') return 'Night Shift (22:00-08:00)';
+                             if (selectedEngineerForProfile.preferredShift === 'custom') {
+                               return `Custom Shift (${selectedEngineerForProfile.customShiftStart || '06:00'}-${selectedEngineerForProfile.customShiftEnd || '16:00'})`;
+                             }
+                             return 'Morning Shift (06:00-16:00)';
+                           })()}
+                         </p>
+                         <span className={`inline-block px-2 py-1 rounded-full text-xs font-medium mt-2 ${
+                           selectedEngineerForProfile.isOnCall 
+                             ? 'bg-orange-100 text-orange-800' 
+                             : 'bg-blue-100 text-blue-800'
+                         }`}>
+                           {selectedEngineerForProfile.isOnCall ? 'On Call' : 'Regular Duty'}
+                         </span>
+                       </div>
+                       
+                       <div className="bg-white rounded-lg p-4 border">
+                         <h5 className="font-semibold text-gray-900 mb-2">Schedule Pattern</h5>
+                         <p className="text-sm text-gray-600">
+                           {selectedEngineerForProfile.isRotationSchedule 
+                             ? 'Rotation Schedule - 2 Days Off Per Week' 
+                             : 'Standard Schedule - Weekends Off'}
+                         </p>
+                         <p className="text-xs text-gray-500 mt-2">
+                           Off Days: {selectedEngineerForProfile.rotationOffDays?.map(day => 
+                             ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][day]
+                           ).join(', ') || 'Sat, Sun'}
+                         </p>
+                       </div>
+                       
+                       <div className="bg-white rounded-lg p-4 border">
+                         <h5 className="font-semibold text-gray-900 mb-2">Weekly Summary</h5>
+                         <p className="text-sm text-gray-600">
+                           {selectedEngineerForProfile.weeklyHours || 40} hours/week
+                         </p>
+                         <p className="text-xs text-gray-500 mt-1">
+                           Working Days: {7 - (selectedEngineerForProfile.rotationOffDays?.length || 2)} days
+                         </p>
+                         <span className={`inline-block px-2 py-1 rounded-full text-xs font-medium mt-2 ${
+                           selectedEngineerForProfile.isFlexibleTiming 
+                             ? 'bg-green-100 text-green-800' 
+                             : 'bg-gray-100 text-gray-800'
+                         }`}>
+                           {selectedEngineerForProfile.isFlexibleTiming ? 'Flexible' : 'Fixed'}
+                         </span>
+                       </div>
+                     </div>
+
+                     {/* Recent Shift History */}
+                     <div className="bg-white rounded-lg p-4 border">
+                       <h5 className="font-semibold text-gray-900 mb-3">Recent Shift History</h5>
+                       <div className="space-y-2">
+                         {[...Array(5)].map((_, index) => {
+                           const date = moment().subtract(index, 'days');
+                           const isWeekend = date.day() === 0 || date.day() === 6;
+                           const isOffDay = selectedEngineerForProfile.rotationOffDays?.includes(date.day());
+                           const worked = !isOffDay && !(isWeekend && !selectedEngineerForProfile.worksWeekends);
+                           
+                           return (
+                             <div key={index} className="flex justify-between items-center py-2 border-b border-gray-100 last:border-b-0">
+                               <div>
+                                 <span className="text-sm font-medium">{date.format('ddd, MMM DD')}</span>
+                                 <span className="text-xs text-gray-500 ml-2">
+                                   {worked ? (
+                                     selectedEngineerForProfile.preferredShift === 'shift-a' ? '06:00-16:00' :
+                                     selectedEngineerForProfile.preferredShift === 'shift-b' ? '14:00-00:00' :
+                                     selectedEngineerForProfile.preferredShift === 'shift-c' ? '22:00-08:00' :
+                                     '06:00-16:00'
+                                   ) : 'OFF'}
+                                 </span>
+                               </div>
+                               <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                                 worked 
+                                   ? 'bg-green-100 text-green-800' 
+                                   : 'bg-red-100 text-red-800'
+                               }`}>
+                                 {worked ? 'Worked' : 'Off'}
+                               </span>
+                             </div>
+                           );
+                         })}
+                       </div>
+                                            </div>
+                     </div>
+                   )}
+
+                   {/* Production Metrics - Manager Only */}
+                   {isManager && (
+                     <div className="bg-gray-50 rounded-lg p-6 lg:col-span-2">
+                     <h4 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                       <TrendingUp className="w-5 h-5 mr-2" />
+                       Production Metrics
+                     </h4>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                      <div className="text-center">
+                        <div className="text-2xl font-bold text-blue-600">{selectedEngineerForProfile.productionMetrics.ticketsResolved}</div>
+                        <div className="text-sm text-gray-600">Tickets Resolved</div>
+                      </div>
+                      <div className="text-center">
+                        <div className="text-2xl font-bold text-green-600">{selectedEngineerForProfile.productionMetrics.incidentsHandled}</div>
+                        <div className="text-sm text-gray-600">Incidents Handled</div>
+                      </div>
+                      <div className="text-center">
+                        <div className="text-2xl font-bold text-purple-600">{selectedEngineerForProfile.productionMetrics.tasksCompleted}</div>
+                        <div className="text-sm text-gray-600">Tasks Completed</div>
+                      </div>
+                      <div className="text-center">
+                        <div className="text-2xl font-bold text-orange-600">{selectedEngineerForProfile.productionMetrics.systemUptimeHours}</div>
+                        <div className="text-sm text-gray-600">System Uptime (hrs)</div>
+                      </div>
+                      <div className="text-center">
+                        <div className="text-2xl font-bold text-red-600">{selectedEngineerForProfile.productionMetrics.projectsDelivered}</div>
+                        <div className="text-sm text-gray-600">Projects Delivered</div>
+                      </div>
+                      <div className="text-center">
+                        <div className="text-2xl font-bold text-yellow-600">{selectedEngineerForProfile.productionMetrics.monthlyTarget}</div>
+                        <div className="text-sm text-gray-600">Monthly Target</div>
+                      </div>
+                      <div className="text-center">
+                        <div className="text-2xl font-bold text-indigo-600">{selectedEngineerForProfile.productionMetrics.averageResolutionTime}h</div>
+                        <div className="text-sm text-gray-600">Avg Resolution Time</div>
+                      </div>
+                      <div className="text-center">
+                        <div className="text-2xl font-bold text-pink-600">{selectedEngineerForProfile.productionMetrics.customerSatisfactionRating}/5</div>
+                        <div className="text-sm text-gray-600">Customer Satisfaction</div>
+                      </div>
+                    </div>
+                                         <div className="mt-4 text-xs text-gray-500">
+                       Last updated: {selectedEngineerForProfile.productionMetrics.lastUpdated 
+                         ? new Date(selectedEngineerForProfile.productionMetrics.lastUpdated).toLocaleDateString()
+                         : 'Never'}
+                     </div>
+                   </div>
+                 )}
+               </div>
+
+                                 {/* Action Buttons */}
+                 <div className="flex justify-end space-x-3 mt-6">
+                   {isManager && (
+                     <button
+                       onClick={() => {
+                         setShowEngineerProfileModal(false);
+                         handleIndividualAssign(selectedEngineerForProfile);
+                       }}
+                       className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
+                     >
+                       Assign Shift
+                     </button>
+                   )}
+                   <button
+                     onClick={() => setShowEngineerProfileModal(false)}
+                     className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
+                   >
+                     Close
+                   </button>
+                 </div>
+              </div>
+            </div>
+          )}
+
+          {/* Production Metrics Modal */}
+          {isManager && selectedEngineerForProduction && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+              <div className="bg-white rounded-2xl p-6 max-w-2xl w-full mx-4">
+                <h2 className="text-xl font-bold mb-4">Update Production Metrics for {selectedEngineerForProduction.name}</h2>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Tickets Resolved</label>
+                    <input 
+                      type="number" 
+                      className="input w-full" 
+                      value={productionForm.ticketsResolved}
+                      onChange={(e) => setProductionForm(prev => ({ ...prev, ticketsResolved: parseInt(e.target.value) || 0 }))}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Incidents Handled</label>
+                    <input 
+                      type="number" 
+                      className="input w-full" 
+                      value={productionForm.incidentsHandled}
+                      onChange={(e) => setProductionForm(prev => ({ ...prev, incidentsHandled: parseInt(e.target.value) || 0 }))}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Tasks Completed</label>
+                    <input 
+                      type="number" 
+                      className="input w-full" 
+                      value={productionForm.tasksCompleted}
+                      onChange={(e) => setProductionForm(prev => ({ ...prev, tasksCompleted: parseInt(e.target.value) || 0 }))}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">System Uptime Hours</label>
+                    <input 
+                      type="number" 
+                      className="input w-full" 
+                      value={productionForm.systemUptimeHours}
+                      onChange={(e) => setProductionForm(prev => ({ ...prev, systemUptimeHours: parseInt(e.target.value) || 0 }))}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Projects Delivered</label>
+                    <input 
+                      type="number" 
+                      className="input w-full" 
+                      value={productionForm.projectsDelivered}
+                      onChange={(e) => setProductionForm(prev => ({ ...prev, projectsDelivered: parseInt(e.target.value) || 0 }))}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Monthly Target</label>
+                    <input 
+                      type="number" 
+                      className="input w-full" 
+                      value={productionForm.monthlyTarget}
+                      onChange={(e) => setProductionForm(prev => ({ ...prev, monthlyTarget: parseInt(e.target.value) || 0 }))}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Average Resolution Time (hours)</label>
+                    <input 
+                      type="number" 
+                      className="input w-full" 
+                      value={productionForm.averageResolutionTime}
+                      onChange={(e) => setProductionForm(prev => ({ ...prev, averageResolutionTime: parseFloat(e.target.value) || 0 }))}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Customer Satisfaction Rating</label>
+                    <input 
+                      type="number" 
+                      className="input w-full" 
+                      value={productionForm.customerSatisfactionRating}
+                      onChange={(e) => setProductionForm(prev => ({ ...prev, customerSatisfactionRating: parseFloat(e.target.value) || 0 }))}
+                    />
+                  </div>
+                </div>
+                
+                <div className="flex justify-end space-x-3 mt-6">
+                  <button
+                    onClick={() => {
+                      setShowProductionModal(false);
+                      setSelectedEngineerForProduction(null);
+                      setProductionForm({
+                        ticketsResolved: 0,
+                        incidentsHandled: 0,
+                        tasksCompleted: 0,
+                        systemUptimeHours: 0,
+                        projectsDelivered: 0,
+                        monthlyTarget: 0,
+                        lastUpdated: '',
+                        averageResolutionTime: 0,
+                        customerSatisfactionRating: 0
+                      });
+                    }}
+                    className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleSaveProduction}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                  >
+                    Save Metrics
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+        </>
       )}
     </div>
   );
-} 
+}

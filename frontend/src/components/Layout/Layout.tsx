@@ -13,6 +13,7 @@ import {
   Lightbulb,
   Trophy,
   BarChart3,
+  FileText,
   Sun,
   Moon,
   Bell,
@@ -73,13 +74,13 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const getAllNavigation = () => [
     { name: 'Dashboard', href: '/', icon: Home },
     { name: 'Scheduler', href: '/scheduler', icon: Calendar },
-    { name: 'Engineers', href: '/scheduler/engineers', icon: Users },
     { name: 'Knowledge Base', href: '/knowledge-base', icon: BookOpen },
     { name: 'Collaboration', href: '/collaboration', icon: MessageSquare },
     { name: 'Mentorship', href: '/mentorship', icon: UserCheck },
     { name: 'Tech Tips', href: '/tech-tips', icon: Lightbulb },
     { name: 'Challenges', href: '/challenges', icon: Trophy },
     { name: 'Production Management', href: '/production', icon: BarChart3 },
+    { name: 'Reports', href: '/reports', icon: FileText },
   ];
 
   const getNavigationForRole = () => {

@@ -523,7 +523,7 @@ export default function Dashboard() {
                 </div>
                 <h3 className="text-lg font-semibold text-gray-900">Engineers</h3>
               </div>
-              <Link to="/scheduler/engineers" className="text-yellow-600 hover:text-yellow-700 transition-colors">
+              <Link to="/scheduler" className="text-yellow-600 hover:text-yellow-700 transition-colors">
                 <ArrowRight className="w-4 h-4" />
               </Link>
             </div>
