@@ -1039,50 +1039,115 @@ export default function EnterpriseScheduler() {
                   const todayAssignment = myAssignments.find(a => a.date === moment().format('YYYY-MM-DD'));
                   const upcomingAssignments = myAssignments.filter(a => moment(a.date).isAfter(moment()));
                   
+                  // Get this week's assignments (Monday to Sunday)
+                  const startOfWeek = moment().startOf('isoWeek'); // Monday
+                  const endOfWeek = moment().endOf('isoWeek'); // Sunday
+                  const weeklyAssignments = myAssignments.filter(a => {
+                    const assignmentDate = moment(a.date);
+                    return assignmentDate.isBetween(startOfWeek, endOfWeek, 'day', '[]');
+                  });
+                  
                   return (
                     <div className="space-y-4">
+                      {/* Engineer Name Header */}
+                      <div className="bg-indigo-50 rounded-lg p-3 border border-indigo-200">
+                        <div className="flex items-center">
+                          <div className="w-10 h-10 bg-indigo-200 rounded-full flex items-center justify-center mr-3">
+                            <User className="w-5 h-5 text-indigo-700" />
+                          </div>
+                          <div>
+                            <div className="font-semibold text-indigo-900">{currentEngineer.name}</div>
+                            <div className="text-sm text-indigo-600">
+                              {currentEngineer.team.name} • {currentEngineer.employeeId}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
                       {/* Today's Shift */}
                       <div className="bg-blue-50 rounded-lg p-4">
-                        <h4 className="font-medium text-blue-900 mb-2">Today's Shift</h4>
+                        <h4 className="font-medium text-blue-900 mb-2">Today's Shift ({moment().format('MMM DD, dddd')})</h4>
                         {todayAssignment ? (
                           <div>
                             {(() => {
                               const shiftType = mockShiftTypes.find(s => s.id === todayAssignment.shiftTypeId);
                               return (
-                                <div className="flex items-center justify-between">
-                                  <span className="text-blue-800">{shiftType?.name}</span>
-                                  <span className="text-blue-600 font-medium">{shiftType?.startTime} - {shiftType?.endTime}</span>
+                                <div className="space-y-2">
+                                  <div className="flex items-center justify-between">
+                                    <span className="text-blue-800 font-medium">{shiftType?.name}</span>
+                                    <span className="text-blue-600 font-bold">{shiftType?.startTime} - {shiftType?.endTime}</span>
+                                  </div>
+                                  <div className="flex items-center justify-between text-sm">
+                                    <span className="text-blue-600">Duration: {shiftType?.duration} hours</span>
+                                    <span className="text-blue-600 capitalize">Status: {todayAssignment.status}</span>
+                                  </div>
+                                  <div className="text-sm text-blue-600">
+                                    Location: {currentEngineer.location.name}
+                                  </div>
                                 </div>
                               );
                             })()}
-                            <div className="text-sm text-blue-600 mt-1">
-                              Status: <span className="capitalize">{todayAssignment.status}</span>
-                            </div>
                           </div>
                         ) : (
                           <div className="text-blue-600">No shift scheduled for today</div>
                         )}
                       </div>
                       
-                      {/* Upcoming Shifts */}
+                      {/* Weekly Schedule */}
                       <div>
-                        <h4 className="font-medium text-gray-900 mb-3">Upcoming Shifts</h4>
-                        <div className="space-y-2 max-h-40 overflow-y-auto">
-                          {upcomingAssignments.slice(0, 5).map((assignment) => {
-                            const shiftType = mockShiftTypes.find(s => s.id === assignment.shiftTypeId);
-                            return (
-                              <div key={assignment.id} className="flex items-center justify-between py-2 px-3 bg-gray-50 rounded">
-                                <div>
-                                  <div className="text-sm font-medium">{moment(assignment.date).format('MMM DD, ddd')}</div>
-                                  <div className="text-xs text-gray-500">{shiftType?.name}</div>
+                        <h4 className="font-medium text-gray-900 mb-3">This Week Schedule ({startOfWeek.format('MMM DD')} - {endOfWeek.format('MMM DD')})</h4>
+                        <div className="space-y-2 max-h-48 overflow-y-auto">
+                          {weeklyAssignments.length > 0 ? (
+                            weeklyAssignments.map((assignment) => {
+                              const shiftType = mockShiftTypes.find(s => s.id === assignment.shiftTypeId);
+                              const assignmentDate = moment(assignment.date);
+                              const isToday = assignmentDate.isSame(moment(), 'day');
+                              const isPast = assignmentDate.isBefore(moment(), 'day');
+                              
+                              return (
+                                <div key={assignment.id} className={`flex items-center justify-between py-2 px-3 rounded ${
+                                  isToday ? 'bg-blue-100 border border-blue-200' : 
+                                  isPast ? 'bg-gray-50' : 'bg-green-50'
+                                }`}>
+                                  <div className="flex items-center">
+                                    <div className={`w-3 h-3 rounded-full mr-3 ${
+                                      isToday ? 'bg-blue-500' : 
+                                      isPast ? 'bg-gray-400' : 'bg-green-500'
+                                    }`}></div>
+                                    <div>
+                                      <div className="text-sm font-medium">{assignmentDate.format('ddd, MMM DD')}</div>
+                                      <div className="text-xs text-gray-500">{shiftType?.name}</div>
+                                    </div>
+                                  </div>
+                                  <div className="text-right">
+                                    <div className="text-xs font-medium">{shiftType?.startTime} - {shiftType?.endTime}</div>
+                                    <div className="text-xs text-gray-500 capitalize">{assignment.status}</div>
+                                  </div>
                                 </div>
-                                <div className="text-xs text-gray-600">{shiftType?.startTime} - {shiftType?.endTime}</div>
-                              </div>
-                            );
-                          })}
-                          {upcomingAssignments.length === 0 && (
-                            <div className="text-gray-500 text-sm">No upcoming shifts scheduled</div>
+                              );
+                            })
+                          ) : (
+                            <div className="text-gray-500 text-sm">No shifts scheduled for this week</div>
                           )}
+                        </div>
+                        
+                        {/* Weekly Summary */}
+                        <div className="mt-3 pt-3 border-t border-gray-200">
+                          <div className="grid grid-cols-2 gap-4 text-sm">
+                            <div>
+                              <span className="text-gray-600">Total Shifts:</span>
+                              <span className="ml-2 font-semibold text-gray-900">{weeklyAssignments.length}</span>
+                            </div>
+                            <div>
+                              <span className="text-gray-600">Hours:</span>
+                              <span className="ml-2 font-semibold text-gray-900">
+                                {weeklyAssignments.reduce((total, assignment) => {
+                                  const shiftType = mockShiftTypes.find(s => s.id === assignment.shiftTypeId);
+                                  return total + (shiftType?.duration || 0);
+                                }, 0)}h
+                              </span>
+                            </div>
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -1110,44 +1175,140 @@ export default function EnterpriseScheduler() {
                     a.date === todayDate && teammates.some(t => t.id === a.engineerId)
                   );
                   
+                  // Check if current engineer is working today
+                  const currentEngineerWorking = assignments.some(a => 
+                    a.date === todayDate && a.engineerId === currentEngineer.id
+                  );
+                  
+                  const totalTeamMembers = teammates.length + 1; // Including current engineer
+                  const presentCount = teammateAssignments.length + (currentEngineerWorking ? 1 : 0);
+                  const absentCount = totalTeamMembers - presentCount;
+                  const attendanceRate = Math.round((presentCount / totalTeamMembers) * 100);
+                  
                   return (
-                    <div className="space-y-3">
-                      <div className="text-sm text-gray-600 mb-4">
-                        Team: <span className="font-medium text-gray-900">{currentEngineer.team.name}</span>
+                    <div className="space-y-4">
+                      {/* Team Header */}
+                      <div className="bg-green-50 rounded-lg p-3 border border-green-200">
+                        <div className="text-sm text-green-600 mb-2">
+                          Team: <span className="font-semibold text-green-900">{currentEngineer.team.name}</span>
+                        </div>
+                        <div className="text-xs text-green-600">
+                          {currentEngineer.team.description}
+                        </div>
+                      </div>
+
+                      {/* Team Attendance Summary */}
+                      <div className="grid grid-cols-3 gap-3">
+                        <div className="bg-green-100 rounded-lg p-3 text-center">
+                          <div className="text-xl font-bold text-green-700">{presentCount}</div>
+                          <div className="text-xs text-green-600">Present</div>
+                        </div>
+                        <div className="bg-red-100 rounded-lg p-3 text-center">
+                          <div className="text-xl font-bold text-red-700">{absentCount}</div>
+                          <div className="text-xs text-red-600">Absent</div>
+                        </div>
+                        <div className="bg-blue-100 rounded-lg p-3 text-center">
+                          <div className="text-xl font-bold text-blue-700">{attendanceRate}%</div>
+                          <div className="text-xs text-blue-600">Attendance</div>
+                        </div>
+                      </div>
+
+                      {/* Current Engineer Status */}
+                      <div className={`rounded-lg p-3 border ${
+                        currentEngineerWorking 
+                          ? 'bg-blue-50 border-blue-200' 
+                          : 'bg-yellow-50 border-yellow-200'
+                      }`}>
+                        <div className="flex items-center">
+                          <div className={`w-3 h-3 rounded-full mr-2 ${
+                            currentEngineerWorking ? 'bg-blue-500' : 'bg-yellow-500'
+                          }`}></div>
+                          <span className="text-sm font-medium">
+                            You are {currentEngineerWorking ? 'scheduled to work' : 'not scheduled'} today
+                          </span>
+                        </div>
                       </div>
                       
-                      <div className="space-y-2 max-h-80 overflow-y-auto">
-                        {teammateAssignments.length > 0 ? (
-                          teammateAssignments.map((assignment) => {
-                            const teammate = teammates.find(t => t.id === assignment.engineerId);
-                            const shiftType = mockShiftTypes.find(s => s.id === assignment.shiftTypeId);
-                            
-                            return (
-                              <div key={assignment.id} className="flex items-center justify-between py-3 px-3 bg-green-50 rounded-lg border border-green-200">
-                                <div className="flex items-center">
-                                  <div className="w-8 h-8 bg-green-200 rounded-full flex items-center justify-center mr-3">
-                                    <User className="w-4 h-4 text-green-700" />
+                      {/* Working Teammates List */}
+                      <div>
+                        <h4 className="font-medium text-gray-900 mb-3">
+                          Working Today ({teammateAssignments.length} teammates)
+                        </h4>
+                        <div className="space-y-2 max-h-64 overflow-y-auto">
+                          {teammateAssignments.length > 0 ? (
+                            teammateAssignments.map((assignment) => {
+                              const teammate = teammates.find(t => t.id === assignment.engineerId);
+                              const shiftType = mockShiftTypes.find(s => s.id === assignment.shiftTypeId);
+                              
+                              return (
+                                <div key={assignment.id} className="flex items-center justify-between py-3 px-3 bg-green-50 rounded-lg border border-green-200">
+                                  <div className="flex items-center">
+                                    <div className="w-8 h-8 bg-green-200 rounded-full flex items-center justify-center mr-3">
+                                      <User className="w-4 h-4 text-green-700" />
+                                    </div>
+                                    <div>
+                                      <div className="text-sm font-medium text-green-900">{teammate?.name}</div>
+                                      <div className="text-xs text-green-600">{shiftType?.name} • {teammate?.employeeId}</div>
+                                    </div>
+                                  </div>
+                                  <div className="text-right">
+                                    <div className="text-xs text-green-700 font-medium">{shiftType?.startTime} - {shiftType?.endTime}</div>
+                                    <div className="text-xs text-green-600 capitalize">{assignment.status}</div>
+                                  </div>
+                                </div>
+                              );
+                            })
+                          ) : (
+                            <div className="text-gray-500 text-sm text-center py-4">
+                              No teammates scheduled for today
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Absent Teammates */}
+                      {absentCount > 0 && (
+                        <div>
+                          <h4 className="font-medium text-gray-900 mb-3">
+                            Not Working Today ({absentCount} members)
+                          </h4>
+                          <div className="space-y-2 max-h-32 overflow-y-auto">
+                            {teammates
+                              .filter(teammate => !teammateAssignments.some(a => a.engineerId === teammate.id))
+                              .slice(0, 5) // Show only first 5 absent members
+                              .map((teammate) => (
+                                <div key={teammate.id} className="flex items-center py-2 px-3 bg-red-50 rounded-lg border border-red-200">
+                                  <div className="w-6 h-6 bg-red-200 rounded-full flex items-center justify-center mr-3">
+                                    <User className="w-3 h-3 text-red-700" />
                                   </div>
                                   <div>
-                                    <div className="text-sm font-medium text-green-900">{teammate?.name}</div>
-                                    <div className="text-xs text-green-600">{shiftType?.name}</div>
+                                    <div className="text-sm font-medium text-red-900">{teammate.name}</div>
+                                    <div className="text-xs text-red-600">{teammate.employeeId}</div>
                                   </div>
                                 </div>
-                                <div className="text-right">
-                                  <div className="text-xs text-green-700 font-medium">{shiftType?.startTime} - {shiftType?.endTime}</div>
-                                  <div className="text-xs text-green-600 capitalize">{assignment.status}</div>
-                                </div>
+                              ))}
+                            {absentCount > 5 && (
+                              <div className="text-xs text-gray-500 text-center py-2">
+                                ... and {absentCount - 5} more absent
                               </div>
-                            );
-                          })
-                        ) : (
-                          <div className="text-gray-500 text-sm">No teammates scheduled for today</div>
-                        )}
-                      </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
                       
-                      <div className="pt-3 border-t">
-                        <div className="text-xs text-gray-500">
-                          Total team members: {teammates.length + 1} • Working today: {teammateAssignments.length + (assignments.some(a => a.date === todayDate && a.engineerId === currentEngineer.id) ? 1 : 0)}
+                      {/* Team Summary */}
+                      <div className="pt-3 border-t border-gray-200">
+                        <div className="grid grid-cols-2 gap-4 text-xs text-gray-600">
+                          <div>
+                            <span>Total Members:</span>
+                            <span className="ml-1 font-semibold text-gray-900">{totalTeamMembers}</span>
+                          </div>
+                          <div>
+                            <span>Team Lead:</span>
+                            <span className="ml-1 font-semibold text-gray-900">
+                              {teammates.find(t => t.isTeamLead)?.name || 'N/A'}
+                            </span>
+                          </div>
                         </div>
                       </div>
                     </div>
