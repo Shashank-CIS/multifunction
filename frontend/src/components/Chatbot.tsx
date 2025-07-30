@@ -16,16 +16,90 @@ interface Message {
   timestamp: Date;
 }
 
-// Mock data for intelligent responses
+// Enhanced mock data for comprehensive technical support
 const generateSmartMockData = () => {
   const teams = [
-    { id: 'network-ops', name: 'Network Operations', engineers: [] as any[] },
-    { id: 'server-ops', name: 'Server Operations', engineers: [] as any[] },
-    { id: 'db-admin', name: 'Database Administration', engineers: [] as any[] },
-    { id: 'cloud-ops', name: 'Cloud Operations', engineers: [] as any[] },
-    { id: 'security-ops', name: 'Security Operations', engineers: [] as any[] },
-    { id: 'service-desk', name: 'Service Desk', engineers: [] as any[] }
+    { id: 'network-ops', name: 'Network Operations', engineers: [] as any[], performanceScore: 92, avgResolutionTime: 45, activeIncidents: 3 },
+    { id: 'server-ops', name: 'Server Operations', engineers: [] as any[], performanceScore: 88, avgResolutionTime: 62, activeIncidents: 5 },
+    { id: 'db-admin', name: 'Database Administration', engineers: [] as any[], performanceScore: 95, avgResolutionTime: 38, activeIncidents: 2 },
+    { id: 'cloud-ops', name: 'Cloud Operations', engineers: [] as any[], performanceScore: 90, avgResolutionTime: 52, activeIncidents: 4 },
+    { id: 'security-ops', name: 'Security Operations', engineers: [] as any[], performanceScore: 87, avgResolutionTime: 72, activeIncidents: 6 },
+    { id: 'service-desk', name: 'Service Desk', engineers: [] as any[], performanceScore: 93, avgResolutionTime: 28, activeIncidents: 8 }
   ];
+
+  const troubleshootingDatabase = {
+    'deployment': {
+      category: 'DevOps',
+      commonIssues: [
+        'Build pipeline failure',
+        'Environment configuration mismatch',
+        'Database migration errors',
+        'Container startup issues'
+      ],
+      quickFixes: [
+        'Check build logs for syntax errors',
+        'Verify environment variables',
+        'Rollback to previous stable version',
+        'Restart deployment pipeline'
+      ]
+    },
+    'network': {
+      category: 'Infrastructure',
+      commonIssues: [
+        'Connection timeouts',
+        'DNS resolution failures',
+        'Load balancer issues',
+        'Firewall blocking'
+      ],
+      quickFixes: [
+        'Check network connectivity',
+        'Verify DNS settings',
+        'Test firewall rules',
+        'Monitor bandwidth usage'
+      ]
+    },
+    'database': {
+      category: 'Data',
+      commonIssues: [
+        'Slow query performance',
+        'Connection pool exhaustion',
+        'Lock contention',
+        'Storage space issues'
+      ],
+      quickFixes: [
+        'Analyze query execution plans',
+        'Increase connection pool size',
+        'Check for long-running transactions',
+        'Monitor disk space usage'
+      ]
+    },
+    'application': {
+      category: 'Software',
+      commonIssues: [
+        'Memory leaks',
+        'High CPU usage',
+        'API response errors',
+        'Session management issues'
+      ],
+      quickFixes: [
+        'Monitor memory usage patterns',
+        'Profile CPU-intensive operations',
+        'Check API endpoints and logs',
+        'Review session configuration'
+      ]
+    }
+  };
+
+  const systemMetrics = {
+    systemUptime: '99.8%',
+    activeIncidents: 28,
+    resolvedToday: 156,
+    avgResolutionTime: '42 minutes',
+    topPerformer: 'Deepika Agnihotri',
+    criticalAlerts: 3,
+    systemLoad: 'Normal',
+    networkLatency: '12ms'
+  };
 
   const locations = ['Chennai', 'Bangalore', 'Mumbai', 'Hyderabad', 'Pune', 'Kolkata'];
   const shifts = [
@@ -92,7 +166,7 @@ const generateSmartMockData = () => {
     team.engineers.push(engineer);
   }
 
-  return { teams, engineers, locations, shifts };
+  return { teams, engineers, locations, shifts, troubleshootingDatabase, systemMetrics };
 };
 
 const Chatbot: React.FC = () => {
@@ -102,7 +176,7 @@ const Chatbot: React.FC = () => {
   const [messages, setMessages] = useState<Message[]>([
     {
       id: '1',
-      text: `Hello ${user?.name || 'there'}, How can I assist you Today?`,
+      text: `👋 Hi ${user?.name || 'there'}! I'm your **CIS Smart Assistant**.\n\nI can help with troubleshooting, performance metrics, team info, navigation, and emergencies.\n\nWhat do you need help with?`,
       sender: 'bot',
       timestamp: new Date()
     }
@@ -123,7 +197,108 @@ const Chatbot: React.FC = () => {
     const message = userMessage.toLowerCase();
     const data = generateSmartMockData();
     
-    // Intelligent query parsing and response generation
+    // 🔧 TROUBLESHOOTING & TECHNICAL SUPPORT
+    if (message.includes('troubleshoot') || message.includes('issue') || message.includes('problem') || 
+        message.includes('error') || message.includes('failure') || message.includes('fix') || 
+        message.includes('debug') || message.includes('broken') || message.includes('not working')) {
+      
+      // Deployment issues
+      if (message.includes('deployment') || message.includes('deploy') || message.includes('build') || 
+          message.includes('pipeline') || message.includes('ci/cd')) {
+        const troubleData = data.troubleshootingDatabase.deployment;
+        return `🔧 **Deployment Troubleshooting Guide:**\n\n📋 **Common Issues:**\n${troubleData.commonIssues.map((issue, i) => `${i + 1}. ${issue}`).join('\n')}\n\n🚀 **Quick Fixes:**\n${troubleData.quickFixes.map((fix, i) => `${i + 1}. ${fix}`).join('\n')}\n\n👨‍💻 **Next Steps:**\n• Check deployment logs in dashboard\n• Contact DevOps team if issue persists\n• Escalate to: Server Operations Team\n\n📞 **Need Help?** Type "escalate deployment issue" for immediate assistance`;
+      }
+      
+      // Network issues
+      if (message.includes('network') || message.includes('connection') || message.includes('timeout') || 
+          message.includes('dns') || message.includes('connectivity')) {
+        const troubleData = data.troubleshootingDatabase.network;
+        return `🌐 **Network Troubleshooting Guide:**\n\n📋 **Common Issues:**\n${troubleData.commonIssues.map((issue, i) => `${i + 1}. ${issue}`).join('\n')}\n\n🔍 **Diagnostic Steps:**\n${troubleData.quickFixes.map((fix, i) => `${i + 1}. ${fix}`).join('\n')}\n\n⚡ **Immediate Actions:**\n• Run network diagnostics\n• Check system status dashboard\n• Verify load balancer health\n\n🚨 **Escalation:** Network Operations Team (24/7 support available)`;
+      }
+      
+      // Database issues
+      if (message.includes('database') || message.includes('db') || message.includes('sql') || 
+          message.includes('query') || message.includes('slow') || message.includes('performance')) {
+        const troubleData = data.troubleshootingDatabase.database;
+        return `🗄️ **Database Troubleshooting Guide:**\n\n📋 **Common Issues:**\n${troubleData.commonIssues.map((issue, i) => `${i + 1}. ${issue}`).join('\n')}\n\n🔧 **Resolution Steps:**\n${troubleData.quickFixes.map((fix, i) => `${i + 1}. ${fix}`).join('\n')}\n\n📊 **Performance Check:**\n• Current DB load: Normal\n• Active connections: 245/500\n• Query response time: 12ms avg\n\n👥 **Expert Help:** Database Administration Team`;
+      }
+      
+      // Application issues
+      if (message.includes('application') || message.includes('app') || message.includes('memory') || 
+          message.includes('cpu') || message.includes('api') || message.includes('session')) {
+        const troubleData = data.troubleshootingDatabase.application;
+        return `💻 **Application Troubleshooting Guide:**\n\n📋 **Common Issues:**\n${troubleData.commonIssues.map((issue, i) => `${i + 1}. ${issue}`).join('\n')}\n\n🛠️ **Resolution Steps:**\n${troubleData.quickFixes.map((fix, i) => `${i + 1}. ${fix}`).join('\n')}\n\n📈 **Current Metrics:**\n• CPU Usage: 23%\n• Memory Usage: 67%\n• Active Sessions: 1,247\n• API Response Time: 145ms\n\n🔗 **Useful Links:**\n• Application Dashboard\n• Performance Monitoring\n• Log Analysis Tools`;
+      }
+      
+      // Generic troubleshooting
+      return `🔧 **Technical Support Assistant Ready!**\n\nI can help troubleshoot:\n🚀 **Deployment Issues** (build failures, CI/CD)\n🌐 **Network Problems** (connectivity, DNS, timeouts)\n🗄️ **Database Issues** (performance, queries, connections)\n💻 **Application Errors** (memory, CPU, APIs)\n\n💡 **Try asking:**\n• "Help with deployment failure"\n• "Network connection issues"\n• "Database performance problem"\n• "Application memory leak"\n\n🚨 **Emergency?** Type "emergency" or "critical issue" for immediate escalation!`;
+    }
+    
+    // 📊 PERFORMANCE & ANALYTICS
+    if (message.includes('performance') || message.includes('metrics') || message.includes('analytics') || 
+        message.includes('stats') || message.includes('dashboard') || message.includes('kpi')) {
+      
+      // Team performance
+      if (message.includes('team')) {
+        let targetTeam = '';
+        if (message.includes('network')) targetTeam = 'network-ops';
+        else if (message.includes('server')) targetTeam = 'server-ops';
+        else if (message.includes('database') || message.includes('db')) targetTeam = 'db-admin';
+        else if (message.includes('cloud')) targetTeam = 'cloud-ops';
+        else if (message.includes('security')) targetTeam = 'security-ops';
+        else if (message.includes('service') || message.includes('desk')) targetTeam = 'service-desk';
+        
+        if (targetTeam) {
+          const team = data.teams.find(t => t.id === targetTeam);
+          return `📊 **${team?.name} Performance Dashboard:**\n\n🎯 **Performance Score:** ${team?.performanceScore}%\n⏱️ **Avg Resolution Time:** ${team?.avgResolutionTime} minutes\n🚨 **Active Incidents:** ${team?.activeIncidents}\n👥 **Team Size:** ${team?.engineers.length} engineers\n🟢 **Available Now:** ${team?.engineers.filter(e => e.isAvailable).length}\n\n📈 **This Month:**\n• Tickets Resolved: ${Math.floor(Math.random() * 500 + 200)}\n• Customer Satisfaction: ${(Math.random() * 0.5 + 4.5).toFixed(1)}/5\n• SLA Compliance: ${Math.floor(Math.random() * 10 + 90)}%\n\n🏆 **Top Performer:** ${team?.engineers.find(e => e.experience >= 5)?.name || 'Loading...'}`;
+        }
+      }
+      
+      // Top performers
+      if (message.includes('top') || message.includes('best') || message.includes('performer')) {
+        return `🏆 **Top Performers This Month:**\n\n🥇 **#1 ${data.systemMetrics.topPerformer}**\n• Tickets Resolved: 89\n• Avg Resolution: 22 minutes\n• Customer Rating: 4.9/5\n\n🥈 **#2 Shashankagowda S**\n• Tickets Resolved: 76\n• Avg Resolution: 28 minutes\n• Customer Rating: 4.8/5\n\n🥉 **#3 Pradip Shinde**\n• Tickets Resolved: 71\n• Avg Resolution: 31 minutes\n• Customer Rating: 4.7/5\n\n📊 **Team Rankings:**\n1. Database Administration (95% score)\n2. Service Desk (93% score)\n3. Network Operations (92% score)\n\n🎯 **View detailed analytics in Performance Dashboard**`;
+      }
+      
+      // System metrics
+      return `📊 **System Performance Overview:**\n\n🟢 **System Health:** ${data.systemMetrics.systemLoad}\n⏱️ **Uptime:** ${data.systemMetrics.systemUptime}\n🚨 **Active Incidents:** ${data.systemMetrics.activeIncidents}\n✅ **Resolved Today:** ${data.systemMetrics.resolvedToday}\n⚡ **Avg Resolution:** ${data.systemMetrics.avgResolutionTime}\n🌐 **Network Latency:** ${data.systemMetrics.networkLatency}\n\n🔴 **Critical Alerts:** ${data.systemMetrics.criticalAlerts}\n🏆 **Top Performer:** ${data.systemMetrics.topPerformer}\n\n📈 **Quick Actions:**\n• View Real-time Dashboard\n• Generate Performance Report\n• Check Team Metrics\n• Monitor System Health`;
+    }
+    
+    // 🧭 NAVIGATION & HELP
+    if (message.includes('navigate') || message.includes('how to') || message.includes('where is') || 
+        message.includes('find') || message.includes('access') || message.includes('dashboard') || 
+        message.includes('help') || message.includes('guide')) {
+      
+      if (message.includes('dashboard') || message.includes('main')) {
+        return `🧭 **Navigation Guide - Main Dashboard:**\n\n📊 **Key Sections:**\n• **Scheduler** - Manage shifts and assignments\n• **Engineer Directory** - Team profiles and contacts\n• **Reports** - Performance analytics and downloads\n• **Knowledge Base** - Documentation and guides\n• **Collaboration** - Team communication tools\n\n🔍 **Quick Access:**\n• Use search bar (top right)\n• Check sidebar navigation\n• Access user menu (profile icon)\n\n💡 **Pro Tips:**\n• Bookmark frequently used pages\n• Use keyboard shortcuts (Ctrl+K for search)\n• Enable notifications for updates`;
+      }
+      
+      if (message.includes('report') || message.includes('analytics')) {
+        return `📈 **Reports & Analytics Guide:**\n\n📊 **Available Reports:**\n• **Performance Reports** - Team and individual metrics\n• **Shift Reports** - Schedule and attendance data\n• **Production Reports** - Output and efficiency stats\n• **Incident Reports** - Issue tracking and resolution\n\n🎯 **Quick Actions:**\n• Generate new report: Click "Generate New Report"\n• Download existing: Use download buttons\n• Filter data: Use search and filter options\n• Schedule reports: Set up automated delivery\n\n👨‍💼 **Manager Features:**\n• Access all team reports\n• Bulk report generation\n• Advanced analytics\n• Performance comparisons`;
+      }
+      
+      return `🧭 **CIS Portal Navigation Help:**\n\n🏠 **Main Areas:**\n• **Dashboard** - Overview and quick actions\n• **Scheduler** - Shift management and planning\n• **Engineer Directory** - Team profiles and skills\n• **Reports** - Analytics and performance data\n• **Knowledge Base** - Documentation and procedures\n\n🔍 **Search & Find:**\n• Use global search (Ctrl+K)\n• Check sidebar menu\n• Access user profile menu\n• Browse help documentation\n\n❓ **Need specific help?** Ask me:\n• "How to generate reports?"\n• "Where is the scheduler?"\n• "How to access team performance?"`;
+    }
+    
+    // 🚨 ESCALATION & EMERGENCY
+    if (message.includes('escalate') || message.includes('emergency') || message.includes('critical') || 
+        message.includes('urgent') || message.includes('immediate') || message.includes('help me') || 
+        message.includes('contact') || message.includes('manager') || message.includes('lead')) {
+      
+      // Critical incident escalation
+      if (message.includes('critical') || message.includes('emergency') || message.includes('urgent')) {
+        return `🚨 **CRITICAL INCIDENT ESCALATION PROTOCOL**\n\n⚡ **Immediate Actions:**\n1. **Log incident** in system immediately\n2. **Contact on-call engineer** for affected team\n3. **Notify team lead** within 15 minutes\n4. **Update incident status** every 30 minutes\n\n📞 **Emergency Contacts:**\n🔴 **Critical Escalation Hotline:** +91-XXX-XXXX\n👨‍💼 **Duty Manager:** +91-XXX-XXXX\n🛡️ **Security Team:** +91-XXX-XXXX\n\n⚡ **On-Call Engineers:**\n• Network Ops: ${data.engineers.find(e => e.isOnCall && e.teamId === 'network-ops')?.name || 'Contact NOC'}\n• Server Ops: ${data.engineers.find(e => e.isOnCall && e.teamId === 'server-ops')?.name || 'Contact SOC'}\n• Database: ${data.engineers.find(e => e.isOnCall && e.teamId === 'db-admin')?.name || 'Contact DBA'}\n\n🎯 **Next:** Provide incident details and affected systems`;
+      }
+      
+      // Team lead contact
+      if (message.includes('team lead') || message.includes('manager') || message.includes('supervisor')) {
+        return `👨‍💼 **Team Leads & Management Contacts:**\n\n🏢 **Team Leaders:**\n• **Network Ops Lead:** Rajesh Kumar (+91-XXX-XXXX)\n• **Server Ops Lead:** Priya Sharma (+91-XXX-XXXX)\n• **Database Lead:** Amit Singh (+91-XXX-XXXX)\n• **Cloud Ops Lead:** Sneha Patel (+91-XXX-XXXX)\n• **Security Lead:** Rohit Gupta (+91-XXX-XXXX)\n• **Service Desk Lead:** Kavya Reddy (+91-XXX-XXXX)\n\n📱 **Management:**\n• **Operations Manager:** Available 9 AM - 6 PM\n• **Technical Director:** Emergency contact only\n• **Duty Manager:** 24/7 availability\n\n⏰ **Current Shift Leads:**\n${data.engineers.filter(e => e.isOnCall && e.experience >= 5).slice(0, 3).map(e => `• ${e.name} (${e.team})`).join('\n')}`;
+      }
+      
+      // General escalation
+      return `🔝 **Escalation Pathways:**\n\n📋 **Standard Escalation:**\n1. **L1 Support** → Service Desk Team\n2. **L2 Support** → Specialist Teams\n3. **L3 Support** → Senior Engineers\n4. **Management** → Team Leads/Managers\n\n⚡ **Quick Escalation:**\n• **Technical Issues** → Contact relevant team lead\n• **System Outages** → Immediate escalation to NOC\n• **Security Incidents** → Security Operations Team\n• **Business Impact** → Operations Manager\n\n📞 **24/7 Support:**\n• **Main Helpdesk:** +91-XXX-XXXX\n• **Emergency Line:** +91-XXX-XXXX\n• **After Hours:** +91-XXX-XXXX\n\n💬 **Internal Escalation:** Use @mention in team channels`;
+    }
+    
+    // Intelligent query parsing and response generation (existing functionality continues...)
     
     // Individual engineer queries - Enhanced pattern matching
     if (message.includes('shift') || message.includes('schedule') || message.includes('timing') || 
@@ -310,15 +485,15 @@ const Chatbot: React.FC = () => {
     
     // Default responses for common greetings
     if (message.includes('hello') || message.includes('hi') || message.includes('hey')) {
-      return `Hello ${user?.name || 'there'}, How can I assist you Today?`;
+      return `Hi ${user?.name || 'there'}! How can I help you today?`;
     }
     
     if (message.includes('thank') || message.includes('thanks')) {
-      return 'You\'re welcome! 😊 I\'m always here to help with real-time CIS information. Feel free to ask about any team, location, or engineer availability!';
+      return 'You\'re welcome! 😊 Happy to help anytime!';
     }
     
     if (message.includes('bye') || message.includes('goodbye')) {
-      return 'Goodbye! 👋 Remember, I\'m available 24/7 for any CIS Portal queries. Have a great day!';
+      return 'Goodbye! 👋 I\'m here 24/7 whenever you need help!';
     }
     
     // Enhanced availability queries for specific engineers
@@ -371,8 +546,8 @@ const Chatbot: React.FC = () => {
       return `👤 **${foundEngineer.name} - Quick Info:**\n\n🏢 **Team:** ${foundEngineer.team}\n📍 **Location:** ${foundEngineer.location}\n⏰ **Shift:** ${foundEngineer.shift.name} (${foundEngineer.shift.time})\n🟢 **Status:** ${foundEngineer.isAvailable ? 'Available' : 'Busy'}\n${foundEngineer.isOnCall ? '🔴 **On Call:** Yes' : '⭕ **On Call:** No'}\n\n💡 *Try asking: "What is ${foundEngineer.name} shift?" or "${foundEngineer.name} availability?"*`;
     }
 
-    // Default intelligent response
-    return `🤖 **I can help you with real-time CIS information!**\n\nTry asking me:\n• "What is [Name] shift?" (e.g., "What is Deepika Agnihotri shift?")\n• "Who is available from [team] team now?"\n• "Show me engineers in [location]"\n• "Current shift status"\n• "Emergency contacts"\n\n💡 **Popular queries:**\n• Deepika Agnihotri shift\n• Available network engineers\n• Engineers in Chennai\n• System overview\n\nWhat specific information do you need?`;
+    // Default intelligent response with enhanced capabilities
+    return `🤖 **I can help with:**\n\n🔧 Troubleshooting (deployment, network, database, app issues)\n📊 Performance metrics and team analytics\n👥 Engineer info and shift schedules\n🧭 Navigation and system help\n🚨 Emergency escalation and contacts\n\n💡 **Try:** "Help with [issue]", "Show [team] performance", "Who is available?", or "Contact [team] lead"`;
   };
 
   const handleSendMessage = async () => {
@@ -542,7 +717,7 @@ const Chatbot: React.FC = () => {
                   value={inputMessage}
                   onChange={(e) => setInputMessage(e.target.value)}
                   onKeyPress={handleKeyPress}
-                  placeholder="Try: 'What is Deepika Agnihotri shift?' or 'Who is available from network team?'"
+                  placeholder="Try: 'Help with deployment issue' or 'Show team performance' or 'Who is available?'"
                   className="flex-1 border border-gray-300 rounded-full px-4 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
                 <button

@@ -31,7 +31,7 @@ import {
   Eye,
   Edit
 } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation, useSearchParams } from 'react-router-dom';
 import { Engineer, ShiftType, ShiftAssignment, Team, Department, Location, Project, SchedulerFilters, ProductionMetrics } from '@/types';
 
 
@@ -439,22 +439,73 @@ const generateMockEngineers = (): Engineer[] => {
   // Generate 150 unique engineers with no name repetition
   const usedNames = new Set<string>();
   
+  // Predefined engineers for search functionality (first 20) - Distributed across locations
+  const predefinedEngineers = [
+    { name: 'Deepika Agnihotri', team: 'Network Operations', location: 'Chennai' },
+    { name: 'Shashankagowda S', team: 'Server Operations', location: 'Bangalore' },
+    { name: 'Pradip Shinde', team: 'Database Administration', location: 'Mumbai' },
+    { name: 'Rajesh Kumar', team: 'Network Operations', location: 'Hyderabad' },
+    { name: 'Priya Sharma', team: 'Server Operations', location: 'Pune' },
+    { name: 'Amit Singh', team: 'Database Administration', location: 'Kolkata' },
+    { name: 'Sneha Patel', team: 'Cloud Operations', location: 'Chennai' },
+    { name: 'Rohit Gupta', team: 'Security Operations', location: 'Bangalore' },
+    { name: 'Aarav Agarwal', team: 'Network Operations', location: 'Mumbai' },
+    { name: 'Abhay Bansal', team: 'Server Operations', location: 'Hyderabad' },
+    { name: 'Aditi Bhat', team: 'Database Administration', location: 'Pune' },
+    { name: 'Ananya Chandra', team: 'Cloud Operations', location: 'Kolkata' },
+    { name: 'Ankita Choudhary', team: 'Security Operations', location: 'Chennai' },
+    { name: 'Archana Das', team: 'Service Desk', location: 'Bangalore' },
+    { name: 'Asha Desai', team: 'Network Operations', location: 'Mumbai' },
+    { name: 'Bhavana Garg', team: 'Server Operations', location: 'Hyderabad' },
+    { name: 'Divya Gupta', team: 'Database Administration', location: 'Pune' },
+    { name: 'Geeta Iyer', team: 'Cloud Operations', location: 'Kolkata' },
+    { name: 'Kavya Jain', team: 'Security Operations', location: 'Chennai' },
+    { name: 'Lakshmi Joshi', team: 'Service Desk', location: 'Bangalore' }
+  ];
+  
   for (let i = 1; i <= 150; i++) {
     let firstName: string;
     let lastName: string;
     let fullName: string;
+    let team: any;
+    let location: any;
     
-    // Ensure unique name combinations
-    do {
-      firstName = firstNames[Math.floor(Math.random() * firstNames.length)];
-      lastName = lastNames[Math.floor(Math.random() * lastNames.length)];
-      fullName = `${firstName} ${lastName}`;
-    } while (usedNames.has(fullName));
+    // Use predefined engineers for the first 20
+    if (i <= predefinedEngineers.length) {
+      const predefined = predefinedEngineers[i - 1];
+      fullName = predefined.name;
+      // Extract first and last names from full name
+      const nameParts = fullName.split(' ');
+      firstName = nameParts[0];
+      lastName = nameParts.slice(1).join(' '); // Handle names with multiple parts
+      team = mockTeams.find(t => t.name === predefined.team) || mockTeams[0];
+      
+      // Map predefined location names to actual mockLocation cities
+      let locationCity = predefined.location;
+      const locationMapping: { [key: string]: string } = {
+        'Bangalore': 'Bengaluru',
+        'Mumbai': 'Navi Mumbai',
+        'Chennai': 'Chennai',
+        'Hyderabad': 'Hyderabad', 
+        'Pune': 'Pune',
+        'Kolkata': 'Kolkata'
+      };
+      
+      const mappedCity = locationMapping[predefined.location] || predefined.location;
+      location = mockLocations.find(l => l.city === mappedCity) || mockLocations[0];
+    } else {
+      // Generate random names for the rest
+      do {
+        firstName = firstNames[Math.floor(Math.random() * firstNames.length)];
+        lastName = lastNames[Math.floor(Math.random() * lastNames.length)];
+        fullName = `${firstName} ${lastName}`;
+      } while (usedNames.has(fullName));
+      
+      team = mockTeams[Math.floor(Math.random() * mockTeams.length)];
+      location = mockLocations[Math.floor(Math.random() * mockLocations.length)];
+    }
     
     usedNames.add(fullName);
-    
-    const team = mockTeams[Math.floor(Math.random() * mockTeams.length)];
-    const location = mockLocations[Math.floor(Math.random() * mockLocations.length)];
     const skillSet = infraSkills[Math.floor(Math.random() * infraSkills.length)];
     
     // Determine shift preferences based on specific users
@@ -572,6 +623,7 @@ const getEngineersWithUpdatedPreferences = () => {
 
 export default function EnterpriseScheduler() {
   const { user, isManager } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
   
   // Main view toggle between Schedule and Directory
   const [mainView, setMainView] = useState<'schedule' | 'directory'>('schedule');
@@ -659,6 +711,39 @@ export default function EnterpriseScheduler() {
     return () => window.removeEventListener('storage', handleStorageChange);
   }, []);
 
+  // Handle URL parameters for opening engineer profiles
+  useEffect(() => {
+    const profileParam = searchParams.get('profile');
+    if (profileParam) {
+      // Find the engineer by ID
+      const engineer = mockEngineers.find(eng => eng.id === profileParam);
+      if (engineer) {
+        // Switch to directory view if needed
+        setMainView('directory');
+        
+        // Open the engineer profile modal
+        setSelectedEngineerForProfile(engineer);
+        setShowEngineerProfileModal(true);
+        
+        // Clear the URL parameter after opening
+        setTimeout(() => {
+          setSearchParams(prev => {
+            const newParams = new URLSearchParams(prev);
+            newParams.delete('profile');
+            return newParams;
+          });
+        }, 1000);
+      } else {
+        // Clear invalid parameter
+        setSearchParams(prev => {
+          const newParams = new URLSearchParams(prev);
+          newParams.delete('profile');
+          return newParams;
+        });
+      }
+    }
+  }, [searchParams, setSearchParams, mockEngineers]);
+
   // Generate some sample assignments
   useEffect(() => {
     const generateAssignments = () => {
@@ -698,6 +783,7 @@ export default function EnterpriseScheduler() {
   // Role-based filtering for Scheduler
   const getAccessibleEngineers = () => {
     const updatedEngineers = getEngineersWithUpdatedPreferences();
+    
     if (isManager) {
       return updatedEngineers; // Managers can schedule all engineers
     } else {
@@ -735,6 +821,8 @@ export default function EnterpriseScheduler() {
     
     return true;
   });
+
+
 
   
 
@@ -1045,7 +1133,10 @@ export default function EnterpriseScheduler() {
                   <label className="block text-gray-700 text-sm font-medium mb-2">Team</label>
                   <select 
                     value={filters.teams.length === 0 ? '' : filters.teams[0]} 
-                    onChange={(e) => setFilters(prev => ({ ...prev, teams: [e.target.value] }))}
+                    onChange={(e) => setFilters(prev => ({ 
+                      ...prev, 
+                      teams: e.target.value === '' ? [] : [e.target.value] 
+                    }))}
                     className="input w-full"
                   >
                     <option value="">All Teams</option>
@@ -1059,7 +1150,10 @@ export default function EnterpriseScheduler() {
                   <label className="block text-gray-700 text-sm font-medium mb-2">Location</label>
                   <select 
                     value={filters.locations.length === 0 ? '' : filters.locations[0]} 
-                    onChange={(e) => setFilters(prev => ({ ...prev, locations: [e.target.value] }))}
+                    onChange={(e) => setFilters(prev => ({ 
+                      ...prev, 
+                      locations: e.target.value === '' ? [] : [e.target.value] 
+                    }))}
                     className="input w-full"
                   >
                     <option value="">All Locations</option>
@@ -1162,7 +1256,7 @@ export default function EnterpriseScheduler() {
 
                     {view === 'grid' ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredEngineers.slice(0, 12).map(engineer => (
+                            {filteredEngineers.map(engineer => (
                   <div key={engineer.id} className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
                     <div className="flex items-center justify-between mb-3">
                       <div className="flex items-center">
@@ -1241,7 +1335,7 @@ export default function EnterpriseScheduler() {
                             type="checkbox"
                             onChange={(e) => {
                                                       if (e.target.checked) {
-                          setSelectedEngineers(filteredEngineers.slice(0, 12).map(e => e.id));
+                          setSelectedEngineers(filteredEngineers.map(e => e.id));
                         } else {
                           setSelectedEngineers([]);
                         }
@@ -1258,7 +1352,7 @@ export default function EnterpriseScheduler() {
                     </tr>
                   </thead>
                                 <tbody className="bg-white divide-y divide-gray-200">
-                {filteredEngineers.slice(0, 12).map(engineer => (
+                {filteredEngineers.map(engineer => (
                       <tr key={engineer.id} className="hover:bg-gray-50">
                         <td className="px-6 py-4 whitespace-nowrap">
                           {isManager && (
