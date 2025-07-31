@@ -30,7 +30,7 @@ const Profile: React.FC = () => {
     joinDate: '2022-03-15',
     employeeId: user?.engineerId || user?.id || 'Unknown',
     manager: isManager ? 'Senior Management' : 'Manager',
-    role: isManager ? 'Manager' : 'Engineer',
+    role: user?.role || 'System Engineer',
     skills: isManager 
       ? ['Team Management', 'Strategic Planning', 'Process Improvement', 'Leadership'] 
       : ['Network Administration', 'Linux', 'Cloud Operations', 'Monitoring', 'Troubleshooting'],

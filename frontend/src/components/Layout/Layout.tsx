@@ -62,16 +62,16 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   // Mock data for search functionality
   const generateSearchData = () => {
     const engineers = [
-      { id: 'cis-001', name: 'Deepika Agnihotri', team: 'Network Operations', location: 'Chennai', type: 'engineer' },
-      { id: 'cis-002', name: 'Shashankagowda S', team: 'Server Operations', location: 'Bangalore', type: 'engineer' },
-      { id: 'cis-003', name: 'Pradip Shinde', team: 'Database Administration', location: 'Mumbai', type: 'engineer' },
-      { id: 'cis-004', name: 'Rajesh Kumar', team: 'Network Operations', location: 'Hyderabad', type: 'engineer' },
-      { id: 'cis-005', name: 'Priya Sharma', team: 'Server Operations', location: 'Pune', type: 'engineer' },
-      { id: 'cis-006', name: 'Amit Singh', team: 'Database Administration', location: 'Kolkata', type: 'engineer' },
-      { id: 'cis-007', name: 'Sneha Patel', team: 'Cloud Operations', location: 'Chennai', type: 'engineer' },
-      { id: 'cis-008', name: 'Rohit Gupta', team: 'Security Operations', location: 'Bangalore', type: 'engineer' },
-      { id: 'cis-009', name: 'Aarav Agarwal', team: 'Network Operations', location: 'Mumbai', type: 'engineer' },
-      { id: 'cis-010', name: 'Abhay Bansal', team: 'Server Operations', location: 'Hyderabad', type: 'engineer' },
+      { id: 'cis-001', name: 'Deepika Agnihotri', team: 'Network Operations', location: 'Chennai', type: 'Sr. System Engineer' },
+      { id: 'cis-002', name: 'Shashankagowda S', team: 'Server Operations', location: 'Bangalore', type: 'Sr. System Engineer' },
+      { id: 'cis-003', name: 'Pradip Shinde', team: 'Database Administration', location: 'Mumbai', type: 'System Engineer' },
+      { id: 'cis-004', name: 'Rajesh Kumar', team: 'Network Operations', location: 'Hyderabad', type: 'Tech Lead' },
+      { id: 'cis-005', name: 'Priya Sharma', team: 'Server Operations', location: 'Pune', type: 'Manager' },
+      { id: 'cis-006', name: 'Amit Singh', team: 'Database Administration', location: 'Kolkata', type: 'Infra Technology Specialist' },
+      { id: 'cis-007', name: 'Sneha Patel', team: 'Cloud Operations', location: 'Chennai', type: 'Associate' },
+      { id: 'cis-008', name: 'Rohit Gupta', team: 'Security Operations', location: 'Bangalore', type: 'Sr. Associate' },
+      { id: 'cis-009', name: 'Aarav Agarwal', team: 'Network Operations', location: 'Mumbai', type: 'Contractor' },
+      { id: 'cis-010', name: 'Abhay Bansal', team: 'Server Operations', location: 'Hyderabad', type: 'System Engineer' },
       { id: 'cis-011', name: 'Aditi Bhat', team: 'Database Administration', location: 'Pune', type: 'engineer' },
       { id: 'cis-012', name: 'Ananya Chandra', team: 'Cloud Operations', location: 'Kolkata', type: 'engineer' },
       { id: 'cis-013', name: 'Ankita Choudhary', team: 'Security Operations', location: 'Chennai', type: 'engineer' },
@@ -380,7 +380,7 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
                 <div className="ml-3">
                   <p className="text-sm font-medium text-gray-900 dark:text-white">{user?.name}</p>
                   <p className="text-xs text-gray-500 dark:text-gray-400">
-                    {isManager ? 'Manager' : 'CIS Engineer'}
+                    {user?.role || 'CIS Staff'}
                     {user?.engineerId && ` • ${user.engineerId}`}
                   </p>
                 </div>
@@ -620,7 +620,7 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
                     <div className="hidden md:block text-left">
                       <div className="text-sm font-medium">{user?.name}</div>
                       <div className="text-xs text-blue-200">
-                        {isManager ? 'Manager' : 'Engineer'}
+                        {user?.role || 'Staff'}
                         {user?.engineerId && ` (${user.engineerId})`}
                       </div>
                     </div>
@@ -639,7 +639,7 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
                             <p className="text-xs text-gray-500 dark:text-gray-400">{user?.email}</p>
                             <p className="text-xs font-medium mt-1">
                               <span className={`px-2 py-1 rounded-full text-white text-xs ${isManager ? 'bg-purple-600' : 'bg-blue-600'}`}>
-                                {isManager ? 'Manager' : 'Engineer'}
+                                {user?.role || 'Staff'}
                                 {user?.engineerId && ` - ${user.engineerId}`}
                               </span>
                             </p>

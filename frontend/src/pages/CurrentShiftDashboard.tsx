@@ -20,7 +20,7 @@ import {
   Star,
   Shield
 } from 'lucide-react';
-import { Engineer, ShiftType, ShiftAssignment, CurrentShiftView, Team, Department, Location } from '@/types';
+import { Engineer, ShiftType, ShiftAssignment, CurrentShiftView, Team, Department, Location, Designation } from '../types';
 
 // Mock data (reusing from other components)
 const mockShiftTypes: ShiftType[] = [
@@ -221,7 +221,26 @@ const generateCurrentShifts = (): CurrentShiftView[] => {
       status: 'active',
       joinDate: '2023-01-01',
       certifications: [],
-      experience: Math.floor(Math.random() * 15) + 1
+      experience: Math.floor(Math.random() * 15) + 1,
+      designation: (() => {
+        const designations: Designation[] = [
+          'System Engineer', 'Sr. System Engineer', 'Tech Lead', 
+          'Infra Technology Specialist', 'Manager', 'Sr. Manager',
+          'Associate', 'Sr. Associate', 'Contractor'
+        ];
+        return designations[Math.floor(Math.random() * designations.length)];
+      })(),
+      productionMetrics: {
+        ticketsResolved: Math.floor(Math.random() * 150) + 50,
+        incidentsHandled: Math.floor(Math.random() * 25) + 5,
+        tasksCompleted: Math.floor(Math.random() * 200) + 80,
+        systemUptimeHours: Math.floor(Math.random() * 500) + 200,
+        projectsDelivered: Math.floor(Math.random() * 8) + 2,
+        monthlyTarget: Math.floor(Math.random() * 50) + 100,
+        lastUpdated: new Date().toISOString(),
+        averageResolutionTime: Math.round((Math.random() * 8 + 2) * 10) / 10,
+        customerSatisfactionRating: Math.round((Math.random() * 1.5 + 3.5) * 10) / 10
+      }
     };
 
     currentShifts.push({
@@ -526,7 +545,7 @@ export default function CurrentShiftDashboard() {
                             {shift.engineer.isTeamLead && <UserCheck className="w-4 h-4 text-blue-500" />}
                             {shift.engineer.isOnCall && <Shield className="w-4 h-4 text-red-500" />}
                           </div>
-                          <div className="text-sm text-gray-500">{shift.engineer.employeeId}</div>
+                          <div className="text-sm font-medium text-indigo-600">{shift.engineer.designation}</div>
                         </div>
                       </div>
                     </td>

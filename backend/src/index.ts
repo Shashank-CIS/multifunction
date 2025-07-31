@@ -13,6 +13,7 @@ import mentorshipRoutes from './routes/mentorship.js';
 import techTipsRoutes from './routes/techTips.js';
 import challengesRoutes from './routes/challenges.js';
 import userRoutes from './routes/users.js';
+import teamsRoutes from './routes/teams.js';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -51,6 +52,7 @@ app.use('/api/mentorship', mentorshipRoutes);
 app.use('/api/tech-tips', techTipsRoutes);
 app.use('/api/challenges', challengesRoutes);
 app.use('/api/users', userRoutes);
+app.use('/api/teams', teamsRoutes);
 
 // WebSocket connection handling
 wss.on('connection', (ws, req) => {

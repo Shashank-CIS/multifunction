@@ -68,7 +68,7 @@ export default function AdminPanel() {
             You don't have permission to access the Admin Panel. This area is restricted to managers only.
           </p>
           <p className="text-sm text-red-600 mt-2">
-            Current Role: Engineer | Required Role: Manager
+            Current Designation: {user?.role || 'Unknown'} | Required Designation: Manager or Sr. Manager
           </p>
         </div>
       </div>

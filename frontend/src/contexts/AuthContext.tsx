@@ -1,10 +1,21 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 
+export type Designation = 
+  | 'System Engineer'
+  | 'Sr. System Engineer'
+  | 'Tech Lead'
+  | 'Infra Technology Specialist'
+  | 'Manager'
+  | 'Sr. Manager'
+  | 'Associate'
+  | 'Sr. Associate'
+  | 'Contractor';
+
 export interface User {
   id: string;
   email: string;
   name: string;
-  role: 'engineer' | 'manager';
+  role: Designation;
   engineerId?: string;
 }
 
@@ -19,27 +30,42 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+// Helper functions to determine role levels
+const isManagerLevel = (role: Designation): boolean => {
+  return role === 'Manager' || role === 'Sr. Manager';
+};
+
+const isEngineerLevel = (role: Designation): boolean => {
+  return role === 'System Engineer' || 
+         role === 'Sr. System Engineer' || 
+         role === 'Tech Lead' || 
+         role === 'Infra Technology Specialist' ||
+         role === 'Associate' ||
+         role === 'Sr. Associate' ||
+         role === 'Contractor';
+};
+
 // Predefined users
 const USERS: User[] = [
   {
     id: 'eng001',
     email: 'Shashankagowda.s@cognizant.com',
     name: 'Shashankagowda S',
-    role: 'engineer',
+    role: 'Sr. System Engineer',
     engineerId: '2171826'
   },
   {
     id: 'eng002', 
     email: 'Pradip.Shinde@cognizant.com',
     name: 'Pradip Shinde',
-    role: 'engineer',
+    role: 'System Engineer',
     engineerId: '2268205'
   },
   {
     id: 'mgr001',
     email: 'Manager@cognizant.com',
     name: 'Manager',
-    role: 'manager'
+    role: 'Manager'
   }
 ];
 
@@ -79,8 +105,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     login,
     logout,
     isAuthenticated: !!user,
-    isManager: user?.role === 'manager',
-    isEngineer: user?.role === 'engineer'
+    isManager: user ? isManagerLevel(user.role) : false,
+    isEngineer: user ? isEngineerLevel(user.role) : false
   };
 
   return (

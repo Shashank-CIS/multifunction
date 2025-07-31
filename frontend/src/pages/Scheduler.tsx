@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import moment from 'moment';
 import { useAuth } from '../contexts/AuthContext';
 import { 
@@ -32,7 +32,7 @@ import {
   Edit
 } from 'lucide-react';
 import { Link, useLocation, useSearchParams } from 'react-router-dom';
-import { Engineer, ShiftType, ShiftAssignment, Team, Department, Location, Project, SchedulerFilters, ProductionMetrics } from '@/types';
+import { Engineer, ShiftType, ShiftAssignment, Team, Department, Location, Project, SchedulerFilters, ProductionMetrics } from '../types';
 
 
 
@@ -574,7 +574,12 @@ const generateMockEngineers = (): Engineer[] => {
       },
       isTeamLead: i <= 8, // 8 team leads for 150 engineers
       isOnCall: Math.random() > 0.87, // ~13% on-call engineers
-      status: 'active',
+      status: (() => {
+        const rand = Math.random();
+        if (rand < 0.85) return 'active';      // 85% active
+        if (rand < 0.95) return 'on-leave';   // 10% on leave
+        return 'inactive';                     // 5% inactive
+      })() as 'active' | 'inactive' | 'on-leave' | 'terminated',
       joinDate: '2023-01-01',
       certifications: [
         'ITIL Foundation', 'CompTIA Network+', 'AWS Solutions Architect',
@@ -582,6 +587,19 @@ const generateMockEngineers = (): Engineer[] => {
         'Microsoft MCSA', 'Red Hat Certified', 'CompTIA Security+'
       ].slice(0, Math.floor(Math.random() * 3) + 1),
       experience: Math.floor(Math.random() * 12) + 2,
+      designation: (() => {
+        const designations = [
+          'System Engineer', 'Sr. System Engineer', 'Tech Lead', 
+          'Infra Technology Specialist', 'Manager', 'Sr. Manager',
+          'Associate', 'Sr. Associate', 'Contractor'
+        ];
+        // Assign higher designations to team leads
+        if (i <= 8) { // Team leads
+          return ['Tech Lead', 'Manager', 'Sr. Manager'][Math.floor(Math.random() * 3)];
+        }
+        // Regular distribution for others
+        return designations[Math.floor(Math.random() * 6)]; // Exclude Manager levels for non-leads
+      })(),
       // Shift Preferences
       ...shiftPrefs,
       // Schedule Policy
@@ -621,9 +639,137 @@ const getEngineersWithUpdatedPreferences = () => {
   });
 };
 
+// Function to check if engineer is currently on shift
+const isEngineerOnShift = (engineer: Engineer): boolean => {
+  const now = moment();
+  const currentTime = now.format('HH:mm');
+  const currentDay = now.day(); // 0 = Sunday, 1 = Monday, etc.
+
+  // Check if today is an off day for this engineer
+  if (engineer.rotationOffDays && engineer.rotationOffDays.includes(currentDay)) {
+    return false;
+  }
+
+  // Get shift times based on engineer's preferred shift
+  let shiftStart = '';
+  let shiftEnd = '';
+  let isOvernight = false;
+
+  if (engineer.preferredShift === 'shift-a') {
+    shiftStart = '06:00';
+    shiftEnd = '16:00';
+    isOvernight = false;
+  } else if (engineer.preferredShift === 'shift-b') {
+    shiftStart = '14:00';
+    shiftEnd = '00:00';
+    isOvernight = true;
+  } else if (engineer.preferredShift === 'shift-c') {
+    shiftStart = '22:00';
+    shiftEnd = '08:00';
+    isOvernight = true;
+  } else if (engineer.preferredShift === 'shift-d') {
+    shiftStart = '04:00';
+    shiftEnd = '14:00';
+    isOvernight = false;
+  } else if (engineer.preferredShift === 'shift-e') {
+    shiftStart = '16:00';
+    shiftEnd = '02:00';
+    isOvernight = true;
+  } else if (engineer.preferredShift === 'custom') {
+    shiftStart = engineer.customShiftStart || '06:00';
+    shiftEnd = engineer.customShiftEnd || '16:00';
+    // Determine if custom shift is overnight
+    isOvernight = shiftStart > shiftEnd;
+  } else {
+    // Default to Shift A
+    shiftStart = '06:00';
+    shiftEnd = '16:00';
+    isOvernight = false;
+  }
+
+  // Check if current time is within shift hours
+  if (isOvernight) {
+    // For overnight shifts (e.g., 22:00 to 08:00)
+    return currentTime >= shiftStart || currentTime <= shiftEnd;
+  } else {
+    // For regular shifts (e.g., 06:00 to 16:00)
+    return currentTime >= shiftStart && currentTime <= shiftEnd;
+  }
+};
+
 export default function EnterpriseScheduler() {
-  const { user, isManager } = useAuth();
+  const { user, isManager, isEngineer } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
+  
+  // Real-time status updates - force re-render every minute for accurate shift status
+  const [currentTime, setCurrentTime] = useState(new Date());
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 60000); // Update every minute
+    
+    return () => clearInterval(interval);
+  }, []);
+
+  // Calculate active shifts count (shifts currently running)
+  const getActiveShiftsCount = () => {
+    const now = moment();
+    const currentTime = now.format('HH:mm');
+    return mockShiftTypes.filter(shift => {
+      if (shift.isOvernight) {
+        return currentTime >= shift.startTime || currentTime <= shift.endTime;
+      } else {
+        return currentTime >= shift.startTime && currentTime <= shift.endTime;
+      }
+    }).length;
+  };
+
+  // Get currently active shift types
+  const getActiveShiftTypes = () => {
+    const now = moment();
+    const currentTime = now.format('HH:mm');
+    return mockShiftTypes.filter(shift => {
+      if (shift.isOvernight) {
+        return currentTime >= shift.startTime || currentTime <= shift.endTime;
+      } else {
+        return currentTime >= shift.startTime && currentTime <= shift.endTime;
+      }
+    });
+  };
+
+  // Calculate engineers assigned to currently active shifts
+  const getEngineersOnActiveShifts = () => {
+    const activeShifts = getActiveShiftTypes();
+    const activeShiftIds = activeShifts.map(shift => shift.id);
+    
+    return getAccessibleEngineers().filter(engineer => {
+      // Map engineer's preferred shift to shift ID
+      let engineerShiftId = '';
+      if (engineer.preferredShift === 'shift-a') engineerShiftId = 'shift-a';
+      else if (engineer.preferredShift === 'shift-b') engineerShiftId = 'shift-b';
+      else if (engineer.preferredShift === 'shift-c') engineerShiftId = 'shift-c';
+      else if (engineer.preferredShift === 'shift-d') engineerShiftId = 'shift-d';
+      else if (engineer.preferredShift === 'shift-e') engineerShiftId = 'shift-e';
+      else engineerShiftId = 'shift-a'; // Default for custom shifts
+      
+      return activeShiftIds.includes(engineerShiftId);
+    }).length;
+  };
+
+  // Calculate active engineers (currently working in active shifts)
+  const getTotalActiveEngineers = () => {
+    return getAccessibleEngineers().filter(engineer => isEngineerOnShift(engineer)).length;
+  };
+
+  // Calculate engineers on leave
+  const getEngineersOnLeave = () => {
+    return getAccessibleEngineers().filter(e => e.status === 'on-leave').length;
+  };
+
+  // Calculate engineers currently working their shifts (for Directory view)
+  const getCurrentlyWorkingEngineers = () => {
+    return getAccessibleEngineers().filter(engineer => isEngineerOnShift(engineer)).length;
+  };
   
   // Main view toggle between Schedule and Directory
   const [mainView, setMainView] = useState<'schedule' | 'directory'>('schedule');
@@ -945,9 +1091,17 @@ export default function EnterpriseScheduler() {
         return false;
       }
       
-      // Status filter
-      if (directoryFilters.status && engineer.status !== directoryFilters.status) {
-        return false;
+      // Status filter - now based on shift schedule
+      if (directoryFilters.status) {
+        if (directoryFilters.status === 'active' && !isEngineerOnShift(engineer)) {
+          return false;
+        }
+        if (directoryFilters.status === 'inactive' && isEngineerOnShift(engineer)) {
+          return false;
+        }
+        if (directoryFilters.status === 'on_call' && !engineer.isOnCall) {
+          return false;
+        }
       }
       
       return true;
@@ -981,7 +1135,7 @@ export default function EnterpriseScheduler() {
     const accessibleEngineers = getAccessibleEngineers();
     return {
       total: accessibleEngineers.length,
-      active: accessibleEngineers.filter(e => e.status === 'active').length,
+      active: accessibleEngineers.filter(engineer => isEngineerOnShift(engineer)).length,
       teamLeads: accessibleEngineers.filter(e => e.isTeamLead).length,
       onCall: accessibleEngineers.filter(e => e.isOnCall).length
     };
@@ -1066,7 +1220,7 @@ export default function EnterpriseScheduler() {
                   </div>
                   <div className="ml-4">
                     <h3 className="text-sm font-medium text-gray-500">Active Shifts</h3>
-                    <p className="text-2xl font-semibold text-gray-900">{mockShiftTypes.filter(s => s.isOvernight).length}</p>
+                    <p className="text-2xl font-semibold text-gray-900">{getActiveShiftsCount()}</p>
                   </div>
                 </div>
               </div>
@@ -1077,8 +1231,8 @@ export default function EnterpriseScheduler() {
                     <Users className="w-6 h-6 text-green-600" />
                   </div>
                   <div className="ml-4">
-                    <h3 className="text-sm font-medium text-gray-500">Engineers on Duty</h3>
-                    <p className="text-2xl font-semibold text-gray-900">{mockEngineers.filter(e => e.isOnCall).length}</p>
+                    <h3 className="text-sm font-medium text-gray-500">Engineers on Shift</h3>
+                    <p className="text-2xl font-semibold text-gray-900">{getEngineersOnActiveShifts()}</p>
                   </div>
                 </div>
               </div>
@@ -1086,23 +1240,23 @@ export default function EnterpriseScheduler() {
               <div className="card">
                 <div className="flex items-center">
                   <div className="p-3 bg-purple-100 rounded-lg">
-                    <MapPin className="w-6 h-6 text-purple-600" />
+                    <UserCheck className="w-6 h-6 text-purple-600" />
                   </div>
                   <div className="ml-4">
-                    <h3 className="text-sm font-medium text-gray-500">Total Locations</h3>
-                    <p className="text-2xl font-semibold text-gray-900">{mockLocations.length}</p>
+                    <h3 className="text-sm font-medium text-gray-500">Active Engineers</h3>
+                    <p className="text-2xl font-semibold text-gray-900">{getTotalActiveEngineers()}</p>
                   </div>
                 </div>
               </div>
 
               <div className="card">
                 <div className="flex items-center">
-                  <div className="p-3 bg-yellow-100 rounded-lg">
-                    <CheckCircle className="w-6 h-6 text-yellow-600" />
+                  <div className="p-3 bg-orange-100 rounded-lg">
+                    <Calendar className="w-6 h-6 text-orange-600" />
                   </div>
                   <div className="ml-4">
-                    <h3 className="text-sm font-medium text-gray-500">Available Engineers</h3>
-                    <p className="text-2xl font-semibold text-gray-900">{mockEngineers.filter(e => e.status === 'active').length}</p>
+                    <h3 className="text-sm font-medium text-gray-500">Engineers on Leave</h3>
+                    <p className="text-2xl font-semibold text-gray-900">{getEngineersOnLeave()}</p>
                   </div>
                 </div>
               </div>
@@ -1110,7 +1264,7 @@ export default function EnterpriseScheduler() {
           </div>
 
           {/* Enhanced Engineer Dashboard - Only for Engineers */}
-          {user?.role === 'engineer' && (
+          {isEngineer && (
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
               {/* Personal Shift Details */}
               <div className="card">
@@ -1120,6 +1274,7 @@ export default function EnterpriseScheduler() {
                 </div>
                 
                 {(() => {
+                  if (!user) return <div>Please log in to view shift details</div>;
                   const currentEngineer = mockEngineers.find(e => e.name === user.name);
                   if (!currentEngineer) return <div>Engineer not found</div>;
                   
@@ -1146,7 +1301,7 @@ export default function EnterpriseScheduler() {
                           <div>
                             <div className="font-semibold text-indigo-900">{currentEngineer.name}</div>
                             <div className="text-sm text-indigo-600">
-                              {currentEngineer.team.name} • {currentEngineer.employeeId}
+                              {currentEngineer.team.name} • {currentEngineer.designation}
                             </div>
                           </div>
                         </div>
@@ -1251,6 +1406,7 @@ export default function EnterpriseScheduler() {
                 </div>
                 
                 {(() => {
+                  if (!user) return <div>Please log in to view team details</div>;
                   const currentEngineer = mockEngineers.find(e => e.name === user.name);
                   if (!currentEngineer) return <div>Engineer not found</div>;
                   
@@ -1336,7 +1492,7 @@ export default function EnterpriseScheduler() {
                                     </div>
                                     <div>
                                       <div className="text-sm font-medium text-green-900">{teammate?.name}</div>
-                                      <div className="text-xs text-green-600">{shiftType?.name} • {teammate?.employeeId}</div>
+                                      <div className="text-xs text-green-600">{shiftType?.name} • {teammate?.designation}</div>
                                     </div>
                                   </div>
                                   <div className="text-right">
@@ -1371,7 +1527,7 @@ export default function EnterpriseScheduler() {
                                   </div>
                                   <div>
                                     <div className="text-sm font-medium text-red-900">{teammate.name}</div>
-                                    <div className="text-xs text-red-600">{teammate.employeeId}</div>
+                                    <div className="text-xs text-red-600">{teammate.designation}</div>
                                   </div>
                                 </div>
                               ))}
@@ -1412,6 +1568,7 @@ export default function EnterpriseScheduler() {
                 </div>
                 
                 {(() => {
+                  if (!user) return <div>Please log in to view attendance details</div>;
                   const currentEngineer = mockEngineers.find(e => e.name === user.name);
                   if (!currentEngineer) return <div>Engineer not found</div>;
                   
@@ -2023,7 +2180,7 @@ export default function EnterpriseScheduler() {
                     >
                       <option value="">Select engineer</option>
                       {getAccessibleEngineers().map(engineer => (
-                        <option key={engineer.id} value={engineer.id}>{engineer.name} - {engineer.employeeId}</option>
+                        <option key={engineer.id} value={engineer.id}>{engineer.name} - {engineer.designation}</option>
                       ))}
                     </select>
                   </div>
@@ -2076,8 +2233,8 @@ export default function EnterpriseScheduler() {
                 <div className="bg-gray-50 rounded-lg p-4 mb-6">
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700">Employee ID</label>
-                      <p className="text-sm text-gray-900">{selectedEngineerForView.employeeId}</p>
+                                              <label className="block text-sm font-medium text-gray-700">Designation</label>
+                        <p className="text-sm font-medium text-indigo-600">{selectedEngineerForView.designation}</p>
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700">Team</label>
@@ -2235,8 +2392,8 @@ export default function EnterpriseScheduler() {
                 <div className="bg-gray-50 rounded-lg p-4 mb-6">
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700">Employee ID</label>
-                      <p className="text-sm text-gray-900">{selectedEngineerForAssign.employeeId}</p>
+                                              <label className="block text-sm font-medium text-gray-700">Designation</label>
+                        <p className="text-sm font-medium text-indigo-600">{selectedEngineerForAssign.designation}</p>
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700">Current Team</label>
@@ -2402,8 +2559,8 @@ export default function EnterpriseScheduler() {
                     <UserCheck className="w-6 h-6 text-green-600" />
                   </div>
                   <div className="ml-4">
-                    <h3 className="text-sm font-medium text-gray-500">Active</h3>
-                    <p className="text-2xl font-semibold text-gray-900">{mockEngineers.filter(e => e.status === 'active').length}</p>
+                    <h3 className="text-sm font-medium text-gray-500">Currently On Shift</h3>
+                    <p className="text-2xl font-semibold text-gray-900">{getCurrentlyWorkingEngineers()}</p>
                   </div>
                 </div>
               </div>
@@ -2534,9 +2691,9 @@ export default function EnterpriseScheduler() {
                     className="input w-full"
                   >
                     <option value="">All Statuses</option>
-                    <option value="active">Active</option>
+                    <option value="active">Currently On Shift</option>
+                    <option value="inactive">Currently Off Shift</option>
                     <option value="on_call">On Call</option>
-                    <option value="inactive">Inactive</option>
                   </select>
                 </div>
                 <div>
@@ -2576,38 +2733,29 @@ export default function EnterpriseScheduler() {
                         </div>
                         <div className="ml-3">
                           <h3 className="text-lg font-semibold text-gray-900">{engineer.name}</h3>
-                          <p className="text-sm text-gray-600">{engineer.employeeId}</p>
-                          <p className="text-sm text-gray-500">{engineer.email}</p>
+                          <p className="text-sm font-medium text-indigo-600">{engineer.designation}</p>
                         </div>
                       </div>
-                      <div className="flex flex-col space-y-1">
-                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                          engineer.isOnCall 
-                            ? 'bg-green-100 text-green-800' 
-                            : 'bg-gray-100 text-gray-800'
-                        }`}>
-                          {engineer.isOnCall ? 'On Call' : 'Available'}
-                        </span>
-                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                          engineer.isRotationSchedule 
-                            ? 'bg-orange-100 text-orange-800' 
-                            : 'bg-blue-100 text-blue-800'
-                        }`}>
-                          {engineer.isRotationSchedule ? 'Rotation' : 'Weekend Off'}
-                        </span>
-                      </div>
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                        isEngineerOnShift(engineer) 
+                          ? 'bg-green-100 text-green-800' 
+                          : 'bg-red-100 text-red-800'
+                      }`}>
+                        {isEngineerOnShift(engineer) ? 'Active' : 'Inactive'}
+                      </span>
                     </div>
                     
-                    <p className="text-sm text-gray-600 mb-2">Team: {engineer.team.name}</p>
-                    <p className="text-sm text-gray-600 mb-2">Location: {engineer.location.name}</p>
-                    <p className="text-sm text-gray-600 mb-2">Experience: {engineer.experience} years</p>
-                    <p className="text-sm text-gray-600 mb-2">Skills: {engineer.skills.join(', ')}</p>
+                    <div className="space-y-1 mb-4">
+                      <p className="text-sm text-gray-600">
+                        <span className="font-medium">Team:</span> {engineer.team.name}
+                      </p>
+                      <p className="text-sm text-gray-600">
+                        <span className="font-medium">Location:</span> {engineer.location.name}
+                      </p>
+                    </div>
                     
-                                         <div className="mt-3 flex items-center justify-between">
-                       <span className="text-xs text-gray-500">
-                         {engineer.productionMetrics.ticketsResolved} tickets resolved
-                       </span>
-                       <div className="flex space-x-2">
+                    <div className="flex justify-end">
+                      <div className="flex space-x-2">
                          <button 
                            onClick={() => handleViewProfile(engineer)}
                            className="text-indigo-600 hover:text-indigo-700 text-sm"
@@ -2633,7 +2781,7 @@ export default function EnterpriseScheduler() {
                   <thead className="bg-gray-50">
                     <tr>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Employee ID</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Designation</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Team</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Location</th>
@@ -2645,7 +2793,7 @@ export default function EnterpriseScheduler() {
                     {getDirectoryFilteredEngineers().map(engineer => (
                       <tr key={engineer.id} className="hover:bg-gray-50">
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{engineer.name}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{engineer.employeeId}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-indigo-600">{engineer.designation}</td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{engineer.email}</td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{engineer.team.name}</td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{engineer.location.name}</td>
@@ -2727,7 +2875,7 @@ export default function EnterpriseScheduler() {
                     </div>
                     <div className="flex-1">
                       <h3 className="text-2xl font-bold text-gray-900">{selectedEngineerForProfile.name}</h3>
-                      <p className="text-lg text-gray-600">{selectedEngineerForProfile.employeeId}</p>
+                      <p className="text-lg font-medium text-indigo-600">{selectedEngineerForProfile.designation}</p>
                       <div className="flex space-x-3 mt-2">
                         <span className={`px-3 py-1 rounded-full text-sm font-medium ${
                           selectedEngineerForProfile.isOnCall 
@@ -2767,8 +2915,8 @@ export default function EnterpriseScheduler() {
                         <p className="text-sm text-gray-900">{selectedEngineerForProfile.name}</p>
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-gray-700">Employee ID</label>
-                        <p className="text-sm text-gray-900">{selectedEngineerForProfile.employeeId}</p>
+                        <label className="block text-sm font-medium text-gray-700">Designation</label>
+                        <p className="text-sm font-medium text-indigo-600">{selectedEngineerForProfile.designation}</p>
                       </div>
                       <div>
                         <label className="block text-sm font-medium text-gray-700">Email</label>
@@ -2787,11 +2935,11 @@ export default function EnterpriseScheduler() {
                         <p className="text-sm text-gray-900">{selectedEngineerForProfile.experience} years</p>
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-gray-700">Status</label>
+                        <label className="block text-sm font-medium text-gray-700">Shift Status</label>
                         <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                          selectedEngineerForProfile.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
+                          isEngineerOnShift(selectedEngineerForProfile) ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
                         }`}>
-                          {selectedEngineerForProfile.status.toUpperCase()}
+                          {isEngineerOnShift(selectedEngineerForProfile) ? 'ON SHIFT' : 'OFF SHIFT'}
                         </span>
                       </div>
                     </div>
@@ -2820,9 +2968,9 @@ export default function EnterpriseScheduler() {
                         <p className="text-xs text-gray-500">{selectedEngineerForProfile.location.city}, {selectedEngineerForProfile.location.state}</p>
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-gray-700">Role</label>
+                        <label className="block text-sm font-medium text-gray-700">Designation</label>
                         <div className="flex items-center space-x-2">
-                          <span className="text-sm text-gray-900">Engineer</span>
+                          <span className="text-sm font-medium text-indigo-600">{selectedEngineerForProfile.designation}</span>
                           {selectedEngineerForProfile.isTeamLead && (
                             <span className="px-2 py-1 bg-purple-100 text-purple-800 rounded-full text-xs font-medium">
                               Team Lead

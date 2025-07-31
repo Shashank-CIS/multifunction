@@ -124,6 +124,7 @@ const Reports: React.FC = () => {
             engineerId: engineer.id,
             engineerName: engineer.name,
             employeeId: engineer.employeeId,
+
             reportType: type,
             dateRange: {
               start: startDate.format('YYYY-MM-DD'),
@@ -868,7 +869,7 @@ const Reports: React.FC = () => {
                            </div>
                            <div className="ml-3">
                              <div className="text-sm font-medium text-gray-900">{engineer.name}</div>
-                             <div className="text-xs text-gray-500">{engineer.employeeId}</div>
+                             <div className="text-xs font-medium text-indigo-600">{engineer.designation}</div>
                            </div>
                          </div>
                        </label>

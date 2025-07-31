@@ -1,10 +1,21 @@
 // User and Authentication Types
+export type Designation = 
+  | 'System Engineer'
+  | 'Sr. System Engineer'
+  | 'Tech Lead'
+  | 'Infra Technology Specialist'
+  | 'Manager'
+  | 'Sr. Manager'
+  | 'Associate'
+  | 'Sr. Associate'
+  | 'Contractor';
+
 export interface User {
   id: string;
   name: string;
   email: string;
   avatar?: string;
-  role: 'admin' | 'mentor' | 'support' | 'user';
+  role: Designation;
   skills: string[];
   interests: string[];
   department: string;
@@ -81,8 +92,9 @@ export interface Engineer {
   emergencyContact?: EmergencyContact;
   certifications: string[];
   experience: number; // years
+  designation: Designation;
   // Shift Preferences
-  preferredShift?: 'shift-a' | 'shift-b' | 'shift-c' | 'custom';
+  preferredShift?: 'shift-a' | 'shift-b' | 'shift-c' | 'shift-d' | 'shift-e' | 'custom';
   customShiftStart?: string;
   customShiftEnd?: string;
   isFlexibleTiming?: boolean;

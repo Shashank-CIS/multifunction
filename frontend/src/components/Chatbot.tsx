@@ -470,7 +470,7 @@ const Chatbot: React.FC = () => {
     // Personal queries (if user is logged in)
     if (user && (message.includes('my') || message.includes('me'))) {
       if (message.includes('team')) {
-        return `👤 **Your Information:**\n\n📧 **Email:** ${user.email}\n🏢 **Role:** ${user.role === 'manager' ? 'Manager' : 'Engineer'}\n${user.engineerId ? `🆔 **ID:** ${user.engineerId}\n` : ''}🎯 **Access Level:** ${isManager ? 'Full Access' : 'Engineer Access'}\n\n💡 *Ask me "my shift" or "my team members" for more details*`;
+        return `👤 **Your Information:**\n\n📧 **Email:** ${user.email}\n🏢 **Designation:** ${user.role}\n${user.engineerId ? `🆔 **ID:** ${user.engineerId}\n` : ''}🎯 **Access Level:** ${isManager ? 'Management Access' : 'Staff Access'}\n\n💡 *Ask me "my shift" or "my team members" for more details*`;
       }
     }
     
