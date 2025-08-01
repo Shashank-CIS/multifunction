@@ -112,6 +112,18 @@ export default function AdminPanel() {
         memberIds: ['eng-004', 'eng-005'],
         createdAt: '2023-02-01',
         maxCapacity: 20
+      },
+      {
+        id: 'team-3',
+        name: 'Project Dedicated',
+        code: 'PD',
+        description: 'Engineers dedicated to specific client projects',
+        color: '#7C3AED',
+        department: {} as Department,
+        teamLeadId: 'eng-007',
+        memberIds: ['eng-007', 'eng-008', 'eng-009'],
+        createdAt: '2023-03-01',
+        maxCapacity: 75
       }
     ];
 

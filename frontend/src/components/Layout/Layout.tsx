@@ -81,7 +81,12 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
       { id: 'cis-017', name: 'Divya Gupta', team: 'Database Administration', location: 'Pune', type: 'engineer' },
       { id: 'cis-018', name: 'Geeta Iyer', team: 'Cloud Operations', location: 'Kolkata', type: 'engineer' },
       { id: 'cis-019', name: 'Kavya Jain', team: 'Security Operations', location: 'Chennai', type: 'engineer' },
-      { id: 'cis-020', name: 'Lakshmi Joshi', team: 'Service Desk', location: 'Bangalore', type: 'engineer' }
+      { id: 'cis-020', name: 'Lakshmi Joshi', team: 'Service Desk', location: 'Bangalore', type: 'engineer' },
+      { id: 'cis-021', name: 'Aakash Kumar', team: 'Project Dedicated', location: 'Bangalore', type: 'engineer' },
+      { id: 'cis-022', name: 'Aarav Sharma', team: 'Project Dedicated', location: 'Pune', type: 'engineer' },
+      { id: 'cis-023', name: 'Aditi Patel', team: 'Project Dedicated', location: 'Mumbai', type: 'engineer' },
+      { id: 'cis-024', name: 'Ananya Singh', team: 'Project Dedicated', location: 'Hyderabad', type: 'engineer' },
+      { id: 'cis-025', name: 'Arjun Reddy', team: 'Project Dedicated', location: 'Chennai', type: 'engineer' }
     ];
 
     const teams = [
@@ -90,7 +95,8 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
       { id: 'team-003', name: 'Database Administration', description: 'Database management and optimization', type: 'team' },
       { id: 'team-004', name: 'Cloud Operations', description: 'Cloud infrastructure and services', type: 'team' },
       { id: 'team-005', name: 'Security Operations', description: 'Cybersecurity and threat management', type: 'team' },
-      { id: 'team-006', name: 'Service Desk', description: 'End-user support and helpdesk services', type: 'team' }
+      { id: 'team-006', name: 'Service Desk', description: 'End-user support and helpdesk services', type: 'team' },
+      { id: 'team-007', name: 'Project Dedicated', description: 'Engineers dedicated to specific client projects', type: 'team' }
     ];
 
     const reports = [
@@ -408,10 +414,10 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
                 </button>
                 
                 {/* Cognizant Brand */}
-                <div className="text-white">
+                <Link to="/" className="text-white hover:text-blue-100 transition-colors cursor-pointer">
                   <h1 className="text-lg font-bold tracking-wide">Cognizant</h1>
                   <p className="text-xs text-blue-200 -mt-1">CIS Portal</p>
-                </div>
+                </Link>
               </div>
 
               {/* Center: Search */}

@@ -174,6 +174,21 @@ const mockLocations = [
 // Generate comprehensive engineer data
 const generateMockEngineers = (): Engineer[] => {
   const engineers: Engineer[] = [];
+  
+  // Real project dedicated engineers (first 10)
+  const realEngineers = [
+    { name: 'Satya Sharma', empId: '162296' },
+    { name: 'Madhan Raj Selvaraj', empId: '162420' },
+    { name: 'Kameswaran Murugesan', empId: '162421' },
+    { name: 'Ashish Avinash Patil', empId: '187784' },
+    { name: 'Shashankagowda S', empId: '2171826' },
+    { name: 'Mohan Kumar V', empId: '2171825' },
+    { name: 'Arunsankar V', empId: '2175815' },
+    { name: 'Charansai Patnam', empId: '2176358' },
+    { name: 'Dineshkumar T', empId: '2181455' },
+    { name: 'Dinanath Vijay Patil', empId: '2438360' }
+  ];
+  
   const firstNames = ['Rahul', 'Priya', 'Amit', 'Sneha', 'Vikram', 'Deepika', 'Arjun', 'Kavya', 'Rohit', 'Ananya', 'Siddharth', 'Meera', 'Karthik', 'Divya', 'Arun'];
   const lastNames = ['Sharma', 'Patel', 'Kumar', 'Singh', 'Reddy', 'Krishnan', 'Mehta', 'Gupta', 'Jain', 'Rao', 'Iyer', 'Nair', 'Agarwal', 'Bansal', 'Verma'];
   const skillSets = [
@@ -188,8 +203,26 @@ const generateMockEngineers = (): Engineer[] => {
   ];
   
   for (let i = 1; i <= 150; i++) { // Expanded sample for demo
-    const firstName = firstNames[Math.floor(Math.random() * firstNames.length)];
-    const lastName = lastNames[Math.floor(Math.random() * lastNames.length)];
+    // Use real engineers for first 10, then random ones
+    let firstName: string;
+    let lastName: string;
+    let fullName: string;
+    let employeeId: string;
+    
+    if (i <= realEngineers.length) {
+      const realEng = realEngineers[i - 1];
+      fullName = realEng.name;
+      const nameParts = fullName.split(' ');
+      firstName = nameParts[0];
+      lastName = nameParts.slice(1).join(' ');
+      employeeId = realEng.empId;
+    } else {
+      firstName = firstNames[Math.floor(Math.random() * firstNames.length)];
+      lastName = lastNames[Math.floor(Math.random() * lastNames.length)];
+      fullName = `${firstName} ${lastName}`;
+      employeeId = `CTS${(1000 + i).toString()}`;
+    }
+    
     const team = mockTeams[Math.floor(Math.random() * mockTeams.length)];
     const location = mockLocations[Math.floor(Math.random() * mockLocations.length)];
     const skills = skillSets[Math.floor(Math.random() * skillSets.length)];
@@ -200,8 +233,8 @@ const generateMockEngineers = (): Engineer[] => {
     
     engineers.push({
       id: `eng-${i.toString().padStart(3, '0')}`,
-      employeeId: `CTS${(1000 + i).toString()}`,
-      name: `${firstName} ${lastName}`,
+      employeeId: employeeId,
+      name: fullName,
       email: `${firstName.toLowerCase()}.${lastName.toLowerCase()}@cognizant.com`,
       phone: `+91-${Math.floor(Math.random() * 9000000000) + 1000000000}`,
       team: team as any,
@@ -226,6 +259,10 @@ const generateMockEngineers = (): Engineer[] => {
       joinDate: `202${Math.floor(Math.random() * 4)}-${String(Math.floor(Math.random() * 12) + 1).padStart(2, '0')}-${String(Math.floor(Math.random() * 28) + 1).padStart(2, '0')}`,
       certifications: ['AWS Certified', 'Azure Fundamentals', 'Kubernetes Certified', 'Agile Certified'].slice(0, Math.floor(Math.random() * 3) + 1),
       experience,
+      designation: (() => {
+        const designations = ['System Engineer', 'Sr. System Engineer', 'Tech Lead'] as const;
+        return designations[Math.floor(Math.random() * designations.length)];
+      })(),
       emergencyContact: {
         name: `${firstName} Emergency Contact`,
         relationship: 'Spouse',
@@ -534,7 +571,92 @@ export default function EngineerDirectory() {
                 </div>
                 
                 <h3 className="font-semibold text-gray-900 mb-1">{engineer.name}</h3>
-                <p className="text-sm text-gray-600 mb-2">{engineer.team.name}</p>
+                <p className="text-sm text-gray-600 mb-1">{engineer.team.name}</p>
+                <p className="text-xs font-medium text-indigo-600 mb-1">
+                  {(() => {
+                    // Find project assignment based on engineer name or employeeId
+                    const projectDedicatedTeam = [
+                      { empId: '162296', name: 'Satya Sharma', project: 'PAPA' },
+                      { empId: '162420', name: 'Madhan Raj Selvaraj', project: 'Metlife' },
+                      { empId: '162421', name: 'Kameswaran Murugesan', project: 'Pearson' },
+                      { empId: '187784', name: 'Ashish Avinash Patil', project: 'Trafigura & Takeda' },
+                      { empId: '239990', name: 'Eswar Pavan Kumar Kundeti', project: 'Philips VA Remediation' },
+                      { empId: '252220', name: 'Singaravel P', project: 'Netcentric' },
+                      { empId: '265754', name: 'Saikrishna Maddi', project: 'UBS' },
+                      { empId: '282670', name: 'Denzil F', project: 'BNYM' },
+                      { empId: '283488', name: 'Suresh Kumar Rampelly', project: 'TRV Chn' },
+                      { empId: '287610', name: 'Abhishek Reddy Thandra', project: 'Credit Suisse' },
+                      { empId: '289148', name: 'Harvin A', project: 'Mirabeau' },
+                      { empId: '290008', name: 'Ravi Chandra Sekhar Para', project: 'Credit Suisse' },
+                      { empId: '293101', name: 'Pradip Barade', project: 'Telstra Bangalore' },
+                      { empId: '293128', name: 'Shivkumar Vishwakarma', project: 'SFDC' },
+                      { empId: '305584', name: 'Vishweshwar Chakali', project: 'UBS' },
+                      { empId: '306436', name: 'Snehanjan Chatterjee', project: 'Papa Call' },
+                      { empId: '315452', name: 'Sagar Sadashiv Janwade', project: 'Google (Asset)' },
+                      { empId: '318419', name: 'E Vijaya Simha Reddy', project: 'UBS' },
+                      { empId: '321542', name: 'Shiva Kumar Davu', project: 'Centene' },
+                      { empId: '337302', name: 'Rajeev Ramakrishnan', project: 'World Bank' },
+                      { empId: '340339', name: 'Swapnil Dattatray Kalbhor', project: 'Credit Suisse' },
+                      { empId: '346107', name: 'Karthick Kuppusamy', project: 'Kaiser' },
+                      { empId: '355670', name: 'Anand VaraPrasad Raju Chekuri', project: 'UBS' },
+                      { empId: '360179', name: 'Ganesh Jaiprakash Mahale', project: 'Google (Asset)' },
+                      { empId: '367323', name: 'Ramdas Shivdas Gawande', project: 'SFDC' },
+                      { empId: '370762', name: 'Surender E', project: 'First Data' },
+                      { empId: '371746', name: 'Harshal Ramesh Kulkarni', project: 'World Bank' },
+                      { empId: '392173', name: 'Tanmoy Chowdhury', project: 'Google (Asset)' },
+                      { empId: '394853', name: 'Deepen Prabhudas Parekh', project: 'E&Y' },
+                      { empId: '408515', name: 'Somnath Ghosh', project: 'JPMC' },
+                      { empId: '412528', name: 'Mohan Babu S', project: 'Lumeris' },
+                      { empId: '437292', name: 'Praveen Devaraj Manoranjitham', project: 'Unbilled' },
+                      { empId: '442574', name: 'Prasanna R', project: 'World Bank' },
+                      { empId: '444384', name: 'Pralaydeb Bandyopadhyay', project: 'Unbilled' },
+                      { empId: '447702', name: 'Plabon Das', project: 'Emblem' },
+                      { empId: '451217', name: 'Anil Kumar Basagond Biradar', project: 'Google Network' },
+                      { empId: '453106', name: 'Mohan Prabu M', project: 'World Bank' },
+                      { empId: '459873', name: 'Manash Ranjan Nayak', project: 'Microsoft (HYD)' },
+                      { empId: '467793', name: 'Praveen J', project: 'Cigna' },
+                      { empId: '476225', name: 'Vijay Kumar Sama', project: 'TJX Hyderabad' },
+                      { empId: '482715', name: 'Koushik Bhattacharya', project: 'First Data' },
+                      { empId: '482720', name: 'Hamsanada S', project: 'Apple' },
+                      { empId: '486852', name: 'Arun Dey', project: 'CoreLogic' },
+                      { empId: '487162', name: 'Rajeev Jaiswal', project: 'Google (Asset)' },
+                      { empId: '500033', name: 'Bhaskar Singh Jamwal', project: 'Credit Suisse (50%) & UBS (50%)' },
+                      { empId: '528935', name: 'Kathavarayan M', project: 'CIGNA-BPS' },
+                      { empId: '539014', name: 'Aldo Samuel Dhason A', project: 'Thomson Reuters' },
+                      { empId: '539018', name: 'Dillibabu T', project: 'HS Labs' },
+                      { empId: '541618', name: 'Rangesh S K', project: 'Astra Zeneca' },
+                      { empId: '544179', name: 'Thamizhazhagan Ramalingam', project: 'Apple' },
+                      { empId: '545740', name: 'Mohammed Hafeez', project: 'UBS' },
+                      { empId: '550895', name: 'Naresh N', project: 'Telstra Bangalore' },
+                      { empId: '554420', name: 'Sathish Gattu', project: 'Apple Warehouse (50%)' },
+                      { empId: '557489', name: 'Rajesh A K', project: 'Merck VA Remediation' },
+                      { empId: '567506', name: 'Nasar Hussain Sardar Hussain', project: 'World Bank' },
+                      { empId: '574427', name: 'M Lakshmi Reddy', project: 'Kaiser' },
+                      { empId: '584154', name: 'Jaikumar V', project: 'Google (Asset)' },
+                      { empId: '586952', name: 'Jose Carlos Bazan-Aguilar', project: 'Apple (USA)' },
+                      { empId: '592367', name: 'Clancy Xinan Chen', project: 'Merck VA Remediation' },
+                      { empId: '599860', name: 'Vamsi Krishna Vrns Pammy', project: 'LinkedIn' },
+                      { empId: '599864', name: 'Shivgond Metre', project: 'Xylem' },
+                      { empId: '599886', name: 'Atul Landge', project: 'JPMC' },
+                      { empId: '599895', name: 'Balaji P K', project: 'UHG' },
+                      { empId: '600327', name: 'MD Asif Iqbal', project: 'CoreLogic' },
+                      { empId: '604287', name: 'Pranay Tambekar', project: 'US Bank' },
+                      { empId: '2171825', name: 'Mohan Kumar V', project: 'Takeda' },
+                      { empId: '2171826', name: 'Shashankagowda S', project: 'NYL' },
+                      { empId: '2175815', name: 'Arunsankar V', project: 'HCSC' },
+                      { empId: '2176358', name: 'Charansai Patnam', project: 'IDCS Application' },
+                      { empId: '2181455', name: 'Dineshkumar T', project: 'US Bank' },
+                      { empId: '2438360', name: 'Dinanath Vijay Patil', project: 'Compliance' }
+                    ];
+
+                    const assignment = projectDedicatedTeam.find(p => 
+                      p.empId === engineer.employeeId || 
+                      p.name.toLowerCase().includes(engineer.name.toLowerCase()) ||
+                      engineer.name.toLowerCase().includes(p.name.toLowerCase())
+                    );
+                    return assignment ? `Project: ${assignment.project}` : 'Standard Operations';
+                  })()}
+                </p>
                 <p className="text-xs text-gray-500 mb-4">{engineer.location.name}</p>
                 
                 <div className="space-y-2 mb-4">
