@@ -16,7 +16,7 @@ import {
   X,
   Save,
   Ticket,
-  Filter,
+    Filter,
   Eye,
   Clock
 } from 'lucide-react';
@@ -53,14 +53,22 @@ const realEngineers = [
   { empId: '599886', name: 'Atul Landge', project: 'JPMC', location: 'Mumbai', assetId: 'MUM-WS-017' }
 ];
 
-// Ticket Update Modal Component
-interface TicketUpdateModalProps {
+// Create Ticket Modal Component
+interface CreateTicketModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSubmitTicket: (ticket: any) => void;
+  onUpdateTicket?: (ticketId: string, updates: any) => void;
+  editingTicket?: any | null;
 }
 
-const TicketUpdateModal: React.FC<TicketUpdateModalProps> = ({ isOpen, onClose, onSubmitTicket }) => {
+const CreateTicketModal: React.FC<CreateTicketModalProps> = ({ 
+  isOpen, 
+  onClose, 
+  onSubmitTicket, 
+  onUpdateTicket,
+  editingTicket 
+}) => {
   const [formData, setFormData] = useState({
     employeeId: '',
     employeeName: '',
@@ -72,27 +80,170 @@ const TicketUpdateModal: React.FC<TicketUpdateModalProps> = ({ isOpen, onClose, 
     resolution: '',
     ticketStatus: 'Open'
   });
-  const [searchSuggestions, setSearchSuggestions] = useState<typeof realEngineers>([]);
+  const [searchSuggestions, setSearchSuggestions] = useState<(typeof realEngineers[0] & { isImported?: boolean })[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
+  
+  // File upload state
+  const [uploadedFile, setUploadedFile] = useState<File | null>(null);
+  const [uploadedUsers, setUploadedUsers] = useState<any[]>([]);
+  const [uploadError, setUploadError] = useState('');
+
+  // Effect to populate form data when editing
+  useEffect(() => {
+    if (editingTicket) {
+      setFormData({
+        employeeId: editingTicket.employeeId || '',
+        employeeName: editingTicket.employeeName || '',
+        assetId: editingTicket.assetId || '',
+        location: editingTicket.location || '',
+        project: editingTicket.project || '',
+        date: editingTicket.date || new Date().toISOString().split('T')[0],
+        issueDescription: editingTicket.issueDescription || '',
+        resolution: editingTicket.resolution || '',
+        ticketStatus: editingTicket.ticketStatus || 'Open'
+      });
+    } else {
+      // Reset form for new ticket
+      setFormData({
+        employeeId: '',
+        employeeName: '',
+        assetId: '',
+        location: '',
+        project: '',
+        date: new Date().toISOString().split('T')[0],
+        issueDescription: '',
+        resolution: '',
+        ticketStatus: 'Open'
+      });
+    }
+    // Clear upload state when modal opens/closes
+    if (isOpen) {
+      setUploadedFile(null);
+      setUploadedUsers([]);
+      setUploadError('');
+    }
+  }, [editingTicket, isOpen]);
 
   // Auto-fill based on employee ID or name
   const handleEmployeeSearch = (value: string, field: 'employeeId' | 'employeeName') => {
     setFormData(prev => ({ ...prev, [field]: value }));
     
     if (value.length > 2) {
-      const filtered = realEngineers.filter(eng => 
+      // Search in existing engineers
+      const filteredEngineers = realEngineers.filter(eng => 
         field === 'employeeId' 
           ? eng.empId.includes(value)
           : eng.name.toLowerCase().includes(value.toLowerCase())
       );
-      setSearchSuggestions(filtered);
-      setShowSuggestions(true);
+
+      // Search in uploaded users and convert to engineer format
+      const filteredUploaded = uploadedUsers.filter(user => 
+        field === 'employeeId' 
+          ? user.employeeId?.includes(value)
+          : user.employeeName?.toLowerCase().includes(value.toLowerCase())
+      ).map(user => ({
+        empId: user.employeeId || '',
+        name: user.employeeName || '',
+        assetId: user.assetId || '',
+        location: user.location || '',
+        project: user.project || '',
+        designation: user.designation || 'N/A',
+        email: user.email || 'N/A',
+        isImported: true // Flag to identify imported users
+      }));
+
+      // Combine both arrays with imported users first
+      const combinedSuggestions = [...filteredUploaded, ...filteredEngineers];
+      setSearchSuggestions(combinedSuggestions);
+      setShowSuggestions(combinedSuggestions.length > 0);
     } else {
       setShowSuggestions(false);
     }
   };
 
-  const selectEmployee = (employee: typeof realEngineers[0]) => {
+  // File upload handlers
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    if (!file.name.endsWith('.csv')) {
+      setUploadError('Please upload a CSV file only');
+      return;
+    }
+
+    setUploadedFile(file);
+    setUploadError('');
+
+    try {
+      const text = await file.text();
+      const users = parseCSV(text);
+      setUploadedUsers(users);
+    } catch (error) {
+      setUploadError('Error reading file. Please check file format.');
+    }
+  };
+
+  const parseCSV = (csvText: string) => {
+    const lines = csvText.split('\n').filter(line => line.trim());
+    if (lines.length < 2) {
+      throw new Error('CSV must have headers and at least one data row');
+    }
+
+    const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
+    const users: any[] = [];
+
+    for (let i = 1; i < lines.length; i++) {
+      const values = lines[i].split(',').map(v => v.trim());
+      if (values.length !== headers.length) continue;
+
+      const user: any = {};
+      headers.forEach((header, index) => {
+        switch (header) {
+          case 'employee id':
+          case 'empid':
+          case 'id':
+            user.employeeId = values[index];
+            break;
+          case 'employee name':
+          case 'name':
+            user.employeeName = values[index];
+            break;
+          case 'asset id':
+          case 'assetid':
+            user.assetId = values[index];
+            break;
+          case 'location':
+            user.location = values[index];
+            break;
+          case 'project':
+            user.project = values[index];
+            break;
+          case 'designation':
+            user.designation = values[index];
+            break;
+          case 'email':
+            user.email = values[index];
+            break;
+          default:
+            user[header] = values[index];
+        }
+      });
+      users.push(user);
+    }
+
+    return users;
+  };
+
+  const clearUpload = () => {
+    setUploadedFile(null);
+    setUploadedUsers([]);
+    setUploadError('');
+    // Reset file input
+    const fileInput = document.getElementById('userFileUpload') as HTMLInputElement;
+    if (fileInput) fileInput.value = '';
+  };
+
+  const selectEmployee = (employee: typeof realEngineers[0] & { isImported?: boolean }) => {
     setFormData(prev => ({
       ...prev,
       employeeId: employee.empId,
@@ -107,53 +258,63 @@ const TicketUpdateModal: React.FC<TicketUpdateModalProps> = ({ isOpen, onClose, 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Generate new ticket ID
-    const newTicket = {
-      id: `TKT-${String(Date.now()).slice(-3).padStart(3, '0')}`,
-      employeeId: formData.employeeId,
-      employeeName: formData.employeeName,
-      assetId: formData.assetId,
-      location: formData.location,
-      project: formData.project,
-      date: formData.date,
-      issueDescription: formData.issueDescription,
-      resolution: formData.resolution,
-      ticketStatus: formData.ticketStatus,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    };
+    if (editingTicket && onUpdateTicket) {
+      // Update existing ticket
+      const updates = {
+        employeeId: formData.employeeId,
+        employeeName: formData.employeeName,
+        assetId: formData.assetId,
+        location: formData.location,
+        project: formData.project,
+        date: formData.date,
+        issueDescription: formData.issueDescription,
+        resolution: formData.resolution,
+        ticketStatus: formData.ticketStatus,
+        updatedAt: new Date().toISOString()
+      };
+      
+      onUpdateTicket(editingTicket.id, updates);
+      alert('Ticket updated successfully!');
+    } else {
+      // Create new ticket
+      const newTicket = {
+        id: `TKT-${String(Date.now()).slice(-3).padStart(3, '0')}`,
+        employeeId: formData.employeeId,
+        employeeName: formData.employeeName,
+        assetId: formData.assetId,
+        location: formData.location,
+        project: formData.project,
+        date: formData.date,
+        issueDescription: formData.issueDescription,
+        resolution: formData.resolution,
+        ticketStatus: formData.ticketStatus,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      };
+      
+      onSubmitTicket(newTicket);
+      alert('Ticket created successfully!');
+    }
     
-    onSubmitTicket(newTicket);
-    alert('Ticket updated successfully!');
     onClose();
-    
-    // Reset form
-    setFormData({
-      employeeId: '',
-      employeeName: '',
-      assetId: '',
-      location: '',
-      project: '',
-      date: new Date().toISOString().split('T')[0],
-      issueDescription: '',
-      resolution: '',
-      ticketStatus: 'Open'
-    });
   };
 
   const resetForm = () => {
-    setFormData({
-      employeeId: '',
-      employeeName: '',
-      assetId: '',
-      location: '',
-      project: '',
-      date: new Date().toISOString().split('T')[0],
-      issueDescription: '',
-      resolution: '',
-      ticketStatus: 'Open'
-    });
+    if (!editingTicket) {
+      setFormData({
+        employeeId: '',
+        employeeName: '',
+        assetId: '',
+        location: '',
+        project: '',
+        date: new Date().toISOString().split('T')[0],
+        issueDescription: '',
+        resolution: '',
+        ticketStatus: 'Open'
+      });
+    }
     setShowSuggestions(false);
+    clearUpload();
   };
 
   if (!isOpen) return null;
@@ -166,8 +327,15 @@ const TicketUpdateModal: React.FC<TicketUpdateModalProps> = ({ isOpen, onClose, 
           <div className="flex items-center">
             <Edit className="w-6 h-6 mr-3" />
             <div>
-              <h2 className="text-2xl font-semibold">Update Ticket Details</h2>
-              <p className="text-orange-100 text-sm">Enter employee details to auto-fill and update ticket information</p>
+              <h2 className="text-2xl font-semibold">
+                {editingTicket ? 'Edit Ticket' : 'Create Ticket'}
+              </h2>
+              <p className="text-orange-100 text-sm">
+                {editingTicket 
+                  ? 'Modify the ticket information below' 
+                  : 'Enter employee details to auto-fill and create ticket information'
+                }
+              </p>
             </div>
           </div>
           <button
@@ -216,6 +384,48 @@ const TicketUpdateModal: React.FC<TicketUpdateModalProps> = ({ isOpen, onClose, 
               </div>
             </div>
 
+            {/* File Upload Button */}
+            <div className="flex items-center justify-between p-3 bg-blue-50 rounded-lg border border-blue-200">
+              <div className="flex items-center space-x-3">
+                <input
+                  id="userFileUpload"
+                  type="file"
+                  accept=".csv"
+                  onChange={handleFileUpload}
+                  className="hidden"
+                />
+                <label
+                  htmlFor="userFileUpload"
+                  className="inline-flex items-center px-3 py-1.5 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors cursor-pointer text-xs font-medium"
+                >
+                  <UploadIcon className="w-3 h-3 mr-1" />
+                  Import CSV
+                </label>
+                
+                {uploadedFile && !uploadError && (
+                  <span className="text-xs text-green-600 font-medium">
+                    ✓ {uploadedUsers.length} users imported
+                  </span>
+                )}
+                
+                {uploadError && (
+                  <span className="text-xs text-red-600 font-medium">
+                    ✗ {uploadError}
+                  </span>
+                )}
+              </div>
+              
+              {uploadedFile && (
+                <button
+                  type="button"
+                  onClick={clearUpload}
+                  className="text-red-600 hover:text-red-800 text-xs font-medium"
+                >
+                  Clear
+                </button>
+              )}
+            </div>
+
             {/* Search Suggestions */}
             {showSuggestions && searchSuggestions.length > 0 && (
               <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
@@ -226,12 +436,24 @@ const TicketUpdateModal: React.FC<TicketUpdateModalProps> = ({ isOpen, onClose, 
                       key={index}
                       type="button"
                       onClick={() => selectEmployee(emp)}
-                      className="w-full text-left p-3 bg-white rounded-lg border border-gray-200 hover:bg-orange-50 hover:border-orange-200 transition-colors"
+                      className={`w-full text-left p-3 rounded-lg border transition-colors ${
+                        emp.isImported 
+                          ? 'bg-blue-50 border-blue-200 hover:bg-blue-100 hover:border-blue-300' 
+                          : 'bg-white border-gray-200 hover:bg-orange-50 hover:border-orange-200'
+                      }`}
                     >
                       <div className="flex justify-between items-center">
-                        <div>
-                          <p className="font-medium text-gray-900">{emp.name}</p>
-                          <p className="text-sm text-gray-600">ID: {emp.empId} • {emp.project}</p>
+                        <div className="flex items-center">
+                          {emp.isImported && (
+                            <FileText className="w-3 h-3 text-blue-600 mr-2 flex-shrink-0" />
+                          )}
+                          <div>
+                            <p className="font-medium text-gray-900">{emp.name}</p>
+                            <p className="text-sm text-gray-600">
+                              ID: {emp.empId} • {emp.project}
+                              {emp.isImported && <span className="text-blue-600 ml-2 text-xs">(Imported)</span>}
+                            </p>
+                          </div>
                         </div>
                         <p className="text-xs text-gray-500">{emp.location}</p>
                       </div>
@@ -286,14 +508,15 @@ const TicketUpdateModal: React.FC<TicketUpdateModalProps> = ({ isOpen, onClose, 
             {/* Date */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Date
+                Date <span className="text-gray-500 text-xs">(editable)</span>
               </label>
               <input
                 type="date"
                 value={formData.date}
-                readOnly
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-600"
+                onChange={(e) => setFormData(prev => ({ ...prev, date: e.target.value }))}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
               />
+              <p className="mt-1 text-xs text-gray-500">You can change the date if this ticket is for a different day</p>
             </div>
 
             {/* User Input Fields */}
@@ -367,7 +590,7 @@ const TicketUpdateModal: React.FC<TicketUpdateModalProps> = ({ isOpen, onClose, 
                 className="flex items-center px-6 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
               >
                 <Save className="w-4 h-4 mr-2" />
-                Update Ticket
+                {editingTicket ? 'Update Ticket' : 'Create Ticket'}
               </button>
             </div>
           </form>
@@ -387,13 +610,33 @@ const TicketManagementView: React.FC<TicketManagementViewProps> = ({ tickets, on
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
   const [selectedTicket, setSelectedTicket] = useState<any>(null);
+  const [editingTicket, setEditingTicket] = useState<any>(null);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
 
   const filteredTickets = tickets.filter(ticket => {
     const matchesSearch = ticket.employeeName.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          ticket.employeeId.includes(searchTerm) ||
                          ticket.id.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = statusFilter === 'All' || ticket.ticketStatus === statusFilter;
-    return matchesSearch && matchesStatus;
+    
+    // Date filtering
+    let matchesDateRange = true;
+    if (startDate || endDate) {
+      const ticketDate = new Date(ticket.date);
+      if (startDate) {
+        const start = new Date(startDate);
+        matchesDateRange = matchesDateRange && ticketDate >= start;
+      }
+      if (endDate) {
+        const end = new Date(endDate);
+        end.setHours(23, 59, 59, 999); // Include the entire end date
+        matchesDateRange = matchesDateRange && ticketDate <= end;
+      }
+    }
+    
+    return matchesSearch && matchesStatus && matchesDateRange;
   });
 
   const getStatusColor = (status: string) => {
@@ -415,41 +658,77 @@ const TicketManagementView: React.FC<TicketManagementViewProps> = ({ tickets, on
     });
   };
 
+  const exportTickets = () => {
+    // Create CSV headers
+    const headers = [
+      'Ticket ID',
+      'Employee Name',
+      'Employee ID',
+      'Asset ID',
+      'Location',
+      'Project',
+      'Issue Description',
+      'Resolution',
+      'Status',
+      'Date',
+      'Created At',
+      'Updated At'
+    ];
+
+    // Create CSV content
+    let csvContent = headers.join(',') + '\n';
+
+    // Add filtered ticket data
+    filteredTickets.forEach(ticket => {
+      const row = [
+        ticket.id,
+        `"${ticket.employeeName || ''}"`,
+        ticket.employeeId || '',
+        ticket.assetId || '',
+        `"${ticket.location || ''}"`,
+        `"${ticket.project || ''}"`,
+        `"${(ticket.issueDescription || '').replace(/"/g, '""')}"`,
+        `"${(ticket.resolution || '').replace(/"/g, '""')}"`,
+        ticket.ticketStatus || '',
+        ticket.date || '',
+        ticket.createdAt ? new Date(ticket.createdAt).toLocaleString() : '',
+        ticket.updatedAt ? new Date(ticket.updatedAt).toLocaleString() : ''
+      ];
+      csvContent += row.join(',') + '\n';
+    });
+
+    // Create and download file
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    
+    if (link.download !== undefined) {
+      const url = URL.createObjectURL(blob);
+      link.setAttribute('href', url);
+      
+      // Create filename with current filters and timestamp
+      const timestamp = new Date().toISOString().split('T')[0];
+      const statusPart = statusFilter !== 'All' ? `_${statusFilter.replace(/\s+/g, '')}` : '';
+      const searchPart = searchTerm ? `_search` : '';
+      const datePart = startDate || endDate 
+        ? `_${startDate || 'start'}-to-${endDate || 'end'}` 
+        : '';
+      const filename = `tickets_export${statusPart}${searchPart}${datePart}_${timestamp}.csv`;
+      
+      link.setAttribute('download', filename);
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+  };
+
   return (
     <div className="space-y-6">
-      {/* Header and Filters */}
+      {/* Header */}
       <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-6">
-        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between space-y-4 lg:space-y-0">
-          <div>
-            <h2 className="text-2xl font-semibold text-gray-900">Ticket Management</h2>
-            <p className="text-gray-600">Track and manage all support tickets</p>
-          </div>
-          
-          <div className="flex items-center space-x-4">
-            <div className="relative">
-              <input
-                type="text"
-                placeholder="Search tickets..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              />
-              <Search className="absolute left-3 top-2.5 w-4 h-4 text-gray-400" />
-            </div>
-            
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            >
-              <option value="All">All Status</option>
-              <option value="Open">Open</option>
-              <option value="In Progress">In Progress</option>
-              <option value="Resolved">Resolved</option>
-              <option value="Closed">Closed</option>
-              <option value="On Hold">On Hold</option>
-            </select>
-          </div>
+        <div>
+          <h2 className="text-2xl font-semibold text-gray-900">Ticket Management</h2>
+          <p className="text-gray-600">Track and manage all support tickets</p>
         </div>
       </div>
 
@@ -507,6 +786,92 @@ const TicketManagementView: React.FC<TicketManagementViewProps> = ({ tickets, on
               </p>
             </div>
           </div>
+        </div>
+      </div>
+
+      {/* Filters and Export */}
+      <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-6">
+        <div className="flex flex-wrap items-center gap-4">
+          {/* Search Filter */}
+          <div className="relative">
+            <input
+              type="text"
+              placeholder="Search tickets..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            />
+            <Search className="absolute left-3 top-2.5 w-4 h-4 text-gray-400" />
+          </div>
+          
+          {/* Status Filter */}
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+          >
+            <option value="All">All Status</option>
+            <option value="Open">Open</option>
+            <option value="In Progress">In Progress</option>
+            <option value="Resolved">Resolved</option>
+            <option value="Closed">Closed</option>
+            <option value="On Hold">On Hold</option>
+          </select>
+
+          {/* Date Range Filters */}
+          <div className="flex items-center space-x-2">
+            <Calendar className="w-4 h-4 text-blue-600" />
+            <label className="text-sm text-gray-600">From:</label>
+            <input
+              type="date"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+              className="px-3 py-1.5 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+            />
+          </div>
+          
+          <div className="flex items-center space-x-2">
+            <label className="text-sm text-gray-600">To:</label>
+            <input
+              type="date"
+              value={endDate}
+              onChange={(e) => setEndDate(e.target.value)}
+              className="px-3 py-1.5 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+            />
+          </div>
+          
+          {(startDate || endDate) && (
+            <button
+              onClick={() => {
+                setStartDate('');
+                setEndDate('');
+              }}
+              className="text-sm text-red-600 hover:text-red-800 font-medium flex items-center"
+            >
+              <X className="w-3 h-3 mr-1" />
+              Clear Dates
+            </button>
+          )}
+          
+          {(startDate || endDate) && (
+            <span className="text-xs text-blue-600 bg-blue-100 px-2 py-1 rounded">
+              {startDate && endDate 
+                ? `${startDate} to ${endDate}` 
+                : startDate 
+                  ? `From ${startDate}` 
+                  : `Until ${endDate}`
+              }
+            </span>
+          )}
+
+          {/* Export Button */}
+          <button
+            onClick={exportTickets}
+            className="flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors ml-auto"
+          >
+            <Download className="w-4 h-4 mr-2" />
+            Export ({filteredTickets.length})
+          </button>
         </div>
       </div>
 
@@ -577,13 +942,25 @@ const TicketManagementView: React.FC<TicketManagementViewProps> = ({ tickets, on
                     {formatDate(ticket.date)}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <button
-                      onClick={() => setSelectedTicket(ticket)}
-                      className="text-blue-600 hover:text-blue-900 text-sm font-medium flex items-center"
-                    >
-                      <Eye className="w-4 h-4 mr-1" />
-                      View
-                    </button>
+                    <div className="flex items-center space-x-3">
+                      <button
+                        onClick={() => setSelectedTicket(ticket)}
+                        className="text-blue-600 hover:text-blue-900 text-sm font-medium flex items-center"
+                      >
+                        <Eye className="w-4 h-4 mr-1" />
+                        View
+                      </button>
+                      <button
+                        onClick={() => {
+                          setEditingTicket(ticket);
+                          setShowEditModal(true);
+                        }}
+                        className="text-orange-600 hover:text-orange-900 text-sm font-medium flex items-center"
+                      >
+                        <Edit className="w-4 h-4 mr-1" />
+                        Edit
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -729,6 +1106,22 @@ const TicketManagementView: React.FC<TicketManagementViewProps> = ({ tickets, on
           </div>
         </div>
       )}
+
+      {/* Edit Ticket Modal */}
+      <CreateTicketModal
+        isOpen={showEditModal}
+        onClose={() => {
+          setShowEditModal(false);
+          setEditingTicket(null);
+        }}
+        onSubmitTicket={() => {}} // Not used for editing
+        onUpdateTicket={(ticketId: string, updates: any) => {
+          onUpdateTicket(ticketId, updates);
+          setShowEditModal(false);
+          setEditingTicket(null);
+        }}
+        editingTicket={editingTicket}
+      />
     </div>
   );
 };
@@ -863,7 +1256,7 @@ const ProductionManagement: React.FC = () => {
   };
   const [showProductionForm, setShowProductionForm] = useState(false);
   const [showAppreciationUpload, setShowAppreciationUpload] = useState(false);
-  const [showTicketUpdate, setShowTicketUpdate] = useState(false);
+  const [showCreateTicket, setShowCreateTicket] = useState(false);
   const [tickets, setTickets] = useState([
     {
       id: 'TKT-001',
@@ -1276,42 +1669,54 @@ const ProductionManagement: React.FC = () => {
 
 
   const renderActionButtons = () => (
-    <div className="flex items-center space-x-4">
+    <div className="flex items-center space-x-3">
       <button
         onClick={() => setShowProductionForm(true)}
-        className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+        className="group relative bg-blue-500/10 backdrop-blur-md border border-blue-200/50 text-blue-700 px-5 py-2.5 rounded-2xl font-semibold text-sm shadow-lg hover:shadow-xl transition-all duration-300 ease-in-out transform hover:scale-105 hover:bg-blue-500/20 hover:border-blue-300/50"
       >
-        <Plus className="w-4 h-4 mr-2" />
-        New Entry
+        <div className="flex items-center space-x-2">
+          <Plus className="w-4 h-4 transition-transform duration-300 group-hover:rotate-90" />
+          <span className="relative z-10">New Entry</span>
+        </div>
+        <div className="absolute inset-0 bg-gradient-to-r from-blue-500/10 to-indigo-500/10 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
       </button>
       
       <button
         onClick={() => setShowAppreciationUpload(true)}
-        className="flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+        className="group relative bg-green-500/10 backdrop-blur-md border border-green-200/50 text-green-700 px-5 py-2.5 rounded-2xl font-semibold text-sm shadow-lg hover:shadow-xl transition-all duration-300 ease-in-out transform hover:scale-105 hover:bg-green-500/20 hover:border-green-300/50"
       >
-        <UploadIcon className="w-4 h-4 mr-2" />
-        Upload Appreciation
+        <div className="flex items-center space-x-2">
+          <UploadIcon className="w-4 h-4 transition-transform duration-300 group-hover:-translate-y-1" />
+          <span className="relative z-10">Upload Appreciation</span>
+        </div>
+        <div className="absolute inset-0 bg-gradient-to-r from-green-500/10 to-emerald-500/10 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
       </button>
       
       <button
-        onClick={() => setShowTicketUpdate(true)}
-        className="flex items-center px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors"
+        onClick={() => setShowCreateTicket(true)}
+        className="group relative bg-orange-500/10 backdrop-blur-md border border-orange-200/50 text-orange-700 px-5 py-2.5 rounded-2xl font-semibold text-sm shadow-lg hover:shadow-xl transition-all duration-300 ease-in-out transform hover:scale-105 hover:bg-orange-500/20 hover:border-orange-300/50"
       >
-        <Edit className="w-4 h-4 mr-2" />
-        Update Ticket
+        <div className="flex items-center space-x-2">
+          <Edit className="w-4 h-4 transition-transform duration-300 group-hover:rotate-12" />
+          <span className="relative z-10">Create Ticket</span>
+        </div>
+        <div className="absolute inset-0 bg-gradient-to-r from-orange-500/10 to-amber-500/10 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
       </button>
 
       {isManager && (
         <button
           onClick={() => setActiveView('admin')}
-          className={`flex items-center px-4 py-2 rounded-lg transition-colors ${
+          className={`group relative backdrop-blur-md px-5 py-2.5 rounded-2xl font-semibold text-sm shadow-lg hover:shadow-xl transition-all duration-300 ease-in-out transform hover:scale-105 ${
             activeView === 'admin'
-              ? 'bg-purple-600 text-white'
-              : 'border border-purple-600 text-purple-600 hover:bg-purple-50'
+              ? 'bg-purple-500/20 border border-purple-300/50 text-purple-700'
+              : 'bg-purple-500/10 border border-purple-200/50 text-purple-700 hover:bg-purple-500/20 hover:border-purple-300/50'
           }`}
         >
-          <Shield className="w-4 h-4 mr-2" />
-          Admin Panel
+          <div className="flex items-center space-x-2">
+            <Shield className="w-4 h-4 transition-transform duration-300 group-hover:rotate-12" />
+            <span className="relative z-10">Admin Panel</span>
+          </div>
+          <div className="absolute inset-0 bg-gradient-to-r from-purple-500/10 to-violet-500/10 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
         </button>
       )}
     </div>
@@ -1332,33 +1737,38 @@ const ProductionManagement: React.FC = () => {
         {renderActionButtons()}
       </div>
 
-      {/* Navigation Tabs */}
+      {/* Modern Navigation Tabs */}
       <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 mb-6">
-        <div className="border-b border-gray-200 dark:border-gray-700">
-          <nav className="flex space-x-8 px-6" aria-label="Tabs">
-            {[
-              { id: 'dashboard', name: 'Dashboard', icon: BarChart3, description: 'Overview & Analytics' },
-              { id: 'profile', name: 'My Profile', icon: User, description: 'Personal History' },
-              { id: 'tickets', name: 'Tickets', icon: Ticket, description: 'Ticket Management' },
-              ...(isManager ? [{ id: 'admin', name: 'Admin Panel', icon: Settings, description: 'Manage & Reports' }] : [])
-            ].map((tab) => (
-              <button
-                key={tab.id}
-                onClick={() => setActiveView(tab.id as typeof activeView)}
-                className={`py-4 px-1 border-b-2 font-medium text-sm flex items-center space-x-2 transition-colors ${
-                  activeView === tab.id
-                    ? 'border-blue-500 text-blue-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                }`}
-              >
-                <tab.icon className="w-4 h-4" />
-                <div className="text-left">
-                  <div>{tab.name}</div>
-                  <div className="text-xs text-gray-400">{tab.description}</div>
-            </div>
-              </button>
-            ))}
-          </nav>
+        <div className="p-6 pb-0">
+          <div className="bg-gray-50 dark:bg-gray-700/50 backdrop-blur-sm rounded-2xl p-1.5 border border-gray-200 dark:border-gray-600">
+            <nav className="flex space-x-1" aria-label="Tabs">
+              {[
+                { id: 'dashboard', name: 'Dashboard', icon: BarChart3, description: 'Overview & Analytics' },
+                { id: 'tickets', name: 'Tickets', icon: Ticket, description: 'Ticket Management' },
+                { id: 'profile', name: 'My Profile', icon: User, description: 'Personal History' },
+                ...(isManager ? [{ id: 'admin', name: 'Admin Panel', icon: Settings, description: 'Manage & Reports' }] : [])
+              ].map((tab) => (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveView(tab.id as typeof activeView)}
+                  className={`relative flex items-center space-x-3 px-4 py-3 rounded-xl font-medium text-sm transition-all duration-300 ease-in-out transform hover:scale-105 ${
+                    activeView === tab.id
+                      ? 'bg-white dark:bg-gray-800 text-blue-600 dark:text-blue-400 shadow-lg shadow-blue-500/20 border border-blue-100 dark:border-blue-500/30'
+                      : 'text-gray-600 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-white/70 dark:hover:bg-gray-600/70'
+                  }`}
+                >
+                  <tab.icon className="w-5 h-5 flex-shrink-0" />
+                  <div className="text-left relative z-10">
+                    <div className="font-semibold">{tab.name}</div>
+                    <div className="text-xs opacity-75">{tab.description}</div>
+                  </div>
+                  {activeView === tab.id && (
+                    <div className="absolute inset-0 bg-gradient-to-r from-blue-500/5 to-indigo-500/5 dark:from-blue-500/10 dark:to-indigo-500/10 rounded-xl"></div>
+                  )}
+                </button>
+              ))}
+            </nav>
+          </div>
         </div>
       </div>
 
@@ -1613,11 +2023,11 @@ const ProductionManagement: React.FC = () => {
         engineerId={user?.engineerId || user?.id || 'unknown'}
       />
 
-      {/* Ticket Update Modal */}
-      <TicketUpdateModal
-        isOpen={showTicketUpdate}
-        onClose={() => setShowTicketUpdate(false)}
-        onSubmitTicket={(ticket) => setTickets(prev => [ticket, ...prev])}
+      {/* Create Ticket Modal */}
+      <CreateTicketModal
+        isOpen={showCreateTicket}
+        onClose={() => setShowCreateTicket(false)}
+        onSubmitTicket={(ticket: any) => setTickets(prev => [ticket, ...prev])}
       />
 
     </div>

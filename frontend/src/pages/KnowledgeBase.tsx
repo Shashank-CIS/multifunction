@@ -127,9 +127,12 @@ const KnowledgeBase: React.FC = () => {
               </p>
             </div>
             {isManager && (
-              <button className="btn btn-primary">
-                <Plus className="w-4 h-4 mr-2" />
-                New Article
+              <button className="group relative bg-white/20 backdrop-blur-md border border-white/30 text-gray-700 px-6 py-3 rounded-2xl font-semibold text-sm shadow-lg hover:shadow-xl transition-all duration-300 ease-in-out transform hover:scale-105 hover:bg-white/40 hover:text-blue-600">
+                <div className="flex items-center space-x-2">
+                  <Plus className="w-4 h-4 transition-transform duration-300 group-hover:rotate-90" />
+                  <span className="relative z-10">New Article</span>
+                </div>
+                <div className="absolute inset-0 bg-gradient-to-r from-blue-500/10 to-purple-500/10 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
               </button>
             )}
           </div>
@@ -222,14 +225,6 @@ const KnowledgeBase: React.FC = () => {
                 <option key={category.id} value={category.name}>{category.name}</option>
               ))}
             </select>
-          </div>
-          
-          {/* New Article Button */}
-          <div className="flex items-end">
-            <button className="btn btn-primary w-full">
-              <Plus className="w-4 h-4 mr-2" />
-              New Article
-            </button>
           </div>
         </div>
 

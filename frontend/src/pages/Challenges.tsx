@@ -28,6 +28,7 @@ const mockChallenges: Challenge[] = [
     description: 'Test your knowledge of REST API design principles, HTTP status codes, and security best practices',
     type: 'quiz',
     difficulty: 'medium',
+    topic: 'api',
     points: 50,
     startDate: '2023-11-01T00:00:00Z',
     endDate: '2023-11-30T23:59:59Z',
@@ -60,6 +61,7 @@ const mockChallenges: Challenge[] = [
     description: 'Learn optimization techniques for React applications including memoization, code splitting, and rendering strategies',
     type: 'learning',
     difficulty: 'hard',
+    topic: 'frontend',
     points: 75,
     startDate: '2023-10-25T00:00:00Z',
     endDate: '2023-12-25T23:59:59Z',
@@ -76,6 +78,7 @@ const mockChallenges: Challenge[] = [
     description: 'Test your understanding of database normalization, indexing, and query optimization',
     type: 'quiz',
     difficulty: 'easy',
+    topic: 'database',
     points: 30,
     startDate: '2023-10-20T00:00:00Z',
     endDate: '2023-11-20T23:59:59Z',
@@ -144,6 +147,16 @@ const difficultyColors = {
   hard: 'bg-red-100 text-red-800'
 };
 
+const topicColors = {
+  api: 'bg-blue-100 text-blue-800',
+  frontend: 'bg-purple-100 text-purple-800',
+  backend: 'bg-green-100 text-green-800',
+  security: 'bg-red-100 text-red-800',
+  database: 'bg-indigo-100 text-indigo-800',
+  devops: 'bg-orange-100 text-orange-800',
+  general: 'bg-gray-100 text-gray-800'
+};
+
 const typeIcons = {
   quiz: Trophy,
   task: Target,
@@ -160,6 +173,7 @@ export default function Challenges() {
   const [quizResults, setQuizResults] = useState<{score: number, total: number} | null>(null);
   const [filterType, setFilterType] = useState<'all' | 'quiz' | 'task' | 'learning'>('all');
   const [filterDifficulty, setFilterDifficulty] = useState<'all' | 'easy' | 'medium' | 'hard'>('all');
+  const [filterTopic, setFilterTopic] = useState<'all' | 'api' | 'frontend' | 'backend' | 'security' | 'database' | 'devops' | 'general'>('all');
   const [searchQuery, setSearchQuery] = useState('');
 
   // Filter challenges
@@ -170,8 +184,9 @@ export default function Challenges() {
 
     const matchesType = filterType === 'all' || challenge.type === filterType;
     const matchesDifficulty = filterDifficulty === 'all' || challenge.difficulty === filterDifficulty;
+    const matchesTopic = filterTopic === 'all' || challenge.topic === filterTopic;
 
-    return matchesSearch && matchesType && matchesDifficulty && challenge.isActive;
+    return matchesSearch && matchesType && matchesDifficulty && matchesTopic && challenge.isActive;
   });
 
   const handleQuizAnswer = (answerIndex: number) => {
@@ -262,6 +277,9 @@ export default function Challenges() {
           <div className="flex items-center space-x-2">
             <span className={`badge ${difficultyColors[challenge.difficulty]} text-xs`}>
               {challenge.difficulty}
+            </span>
+            <span className={`badge ${topicColors[challenge.topic]} text-xs capitalize`}>
+              {challenge.topic}
             </span>
             <span className="badge badge-primary text-xs">{challenge.points}pts</span>
           </div>
@@ -480,6 +498,20 @@ export default function Challenges() {
                   <option value="easy">Easy</option>
                   <option value="medium">Medium</option>
                   <option value="hard">Hard</option>
+                </select>
+                <select
+                  value={filterTopic}
+                  onChange={(e) => setFilterTopic(e.target.value as any)}
+                  className="input min-w-[120px]"
+                >
+                  <option value="all">All Topics</option>
+                  <option value="api">API</option>
+                  <option value="frontend">Frontend</option>
+                  <option value="backend">Backend</option>
+                  <option value="security">Security</option>
+                  <option value="database">Database</option>
+                  <option value="devops">DevOps</option>
+                  <option value="general">General</option>
                 </select>
               </div>
             </div>

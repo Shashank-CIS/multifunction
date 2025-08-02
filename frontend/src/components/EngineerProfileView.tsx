@@ -343,27 +343,33 @@ const EngineerProfileView: React.FC<EngineerProfileViewProps> = ({
 
       {/* Navigation Tabs */}
       <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700">
-        <div className="border-b border-gray-200 dark:border-gray-700">
-          <nav className="flex space-x-8 px-6" aria-label="Tabs">
-            {[
-              { id: 'overview', name: 'Overview', icon: BarChart3 },
-              { id: 'entries', name: 'Production Entries', icon: FileText },
-              { id: 'appreciations', name: 'Appreciations', icon: Trophy }
-            ].map((tab) => (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id as typeof activeTab)}
-                className={`py-4 px-1 border-b-2 font-medium text-sm flex items-center space-x-2 transition-colors ${
-                  activeTab === tab.id
-                    ? 'border-blue-500 text-blue-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                }`}
-              >
-                <tab.icon className="w-4 h-4" />
-                <span>{tab.name}</span>
-              </button>
-            ))}
-          </nav>
+        {/* Modern Navigation Pills */}
+        <div className="p-6 pb-0">
+          <div className="bg-gray-50 dark:bg-gray-700/50 backdrop-blur-sm rounded-2xl p-1.5 border border-gray-200 dark:border-gray-600">
+            <nav className="flex space-x-1" aria-label="Tabs">
+              {[
+                { id: 'overview', name: 'Overview', icon: BarChart3 },
+                { id: 'entries', name: 'Production Entries', icon: FileText },
+                { id: 'appreciations', name: 'Appreciations', icon: Trophy }
+              ].map((tab) => (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id as typeof activeTab)}
+                  className={`relative flex items-center space-x-2 px-4 py-2.5 rounded-xl font-medium text-sm transition-all duration-300 ease-in-out transform hover:scale-105 ${
+                    activeTab === tab.id
+                      ? 'bg-white dark:bg-gray-800 text-blue-600 dark:text-blue-400 shadow-lg shadow-blue-500/20 border border-blue-100 dark:border-blue-500/30'
+                      : 'text-gray-600 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-white/70 dark:hover:bg-gray-600/70'
+                  }`}
+                >
+                  <tab.icon className="w-4 h-4" />
+                  <span className="relative z-10">{tab.name}</span>
+                  {activeTab === tab.id && (
+                    <div className="absolute inset-0 bg-gradient-to-r from-blue-500/5 to-indigo-500/5 dark:from-blue-500/10 dark:to-indigo-500/10 rounded-xl"></div>
+                  )}
+                </button>
+              ))}
+            </nav>
+          </div>
         </div>
 
         <div className="p-6">

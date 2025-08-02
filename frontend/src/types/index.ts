@@ -338,6 +338,7 @@ export interface Challenge {
   description: string;
   type: 'quiz' | 'task' | 'learning';
   difficulty: 'easy' | 'medium' | 'hard';
+  topic: 'api' | 'frontend' | 'backend' | 'security' | 'database' | 'devops' | 'general';
   points: number;
   startDate: string;
   endDate: string;

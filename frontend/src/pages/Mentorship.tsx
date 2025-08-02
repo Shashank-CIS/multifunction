@@ -380,25 +380,51 @@ export default function Mentorship() {
             <h1 className="text-3xl font-bold text-gray-900 mb-2">Mentorship Program</h1>
             <p className="text-gray-600">Connect, learn, and grow together</p>
           </div>
-          <div className="flex items-center space-x-3">
-            <button
-              onClick={() => setView('overview')}
-              className={`btn ${view === 'overview' ? 'btn-primary' : 'btn-secondary'}`}
-            >
-              Overview
-            </button>
-            <button
-              onClick={() => setView('find-mentor')}
-              className={`btn ${view === 'find-mentor' ? 'btn-primary' : 'btn-secondary'}`}
-            >
-              Find Mentor
-            </button>
-            <button
-              onClick={() => setView('my-mentorship')}
-              className={`btn ${view === 'my-mentorship' ? 'btn-primary' : 'btn-secondary'}`}
-            >
-              My Mentorship
-            </button>
+          <div className="flex items-center">
+            {/* Modern Navigation Pills */}
+            <div className="bg-white/20 backdrop-blur-md rounded-2xl p-1.5 shadow-lg border border-white/30">
+              <div className="flex space-x-1">
+                <button
+                  onClick={() => setView('overview')}
+                  className={`relative px-6 py-2.5 rounded-xl font-medium text-sm transition-all duration-300 ease-in-out transform hover:scale-105 ${
+                    view === 'overview'
+                      ? 'bg-white text-blue-600 shadow-lg shadow-blue-500/25 border border-blue-100'
+                      : 'text-gray-700 hover:text-blue-600 hover:bg-white/50'
+                  }`}
+                >
+                  <span className="relative z-10">Overview</span>
+                  {view === 'overview' && (
+                    <div className="absolute inset-0 bg-gradient-to-r from-blue-500/10 to-indigo-500/10 rounded-xl"></div>
+                  )}
+                </button>
+                <button
+                  onClick={() => setView('find-mentor')}
+                  className={`relative px-6 py-2.5 rounded-xl font-medium text-sm transition-all duration-300 ease-in-out transform hover:scale-105 ${
+                    view === 'find-mentor'
+                      ? 'bg-white text-blue-600 shadow-lg shadow-blue-500/25 border border-blue-100'
+                      : 'text-gray-700 hover:text-blue-600 hover:bg-white/50'
+                  }`}
+                >
+                  <span className="relative z-10">Find Mentor</span>
+                  {view === 'find-mentor' && (
+                    <div className="absolute inset-0 bg-gradient-to-r from-blue-500/10 to-indigo-500/10 rounded-xl"></div>
+                  )}
+                </button>
+                <button
+                  onClick={() => setView('my-mentorship')}
+                  className={`relative px-6 py-2.5 rounded-xl font-medium text-sm transition-all duration-300 ease-in-out transform hover:scale-105 ${
+                    view === 'my-mentorship'
+                      ? 'bg-white text-blue-600 shadow-lg shadow-blue-500/25 border border-blue-100'
+                      : 'text-gray-700 hover:text-blue-600 hover:bg-white/50'
+                  }`}
+                >
+                  <span className="relative z-10">My Mentorship</span>
+                  {view === 'my-mentorship' && (
+                    <div className="absolute inset-0 bg-gradient-to-r from-blue-500/10 to-indigo-500/10 rounded-xl"></div>
+                  )}
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       </div>
