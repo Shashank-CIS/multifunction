@@ -44,32 +44,66 @@ export interface EngineerStatus {
   displayStatus: 'available' | 'away' | 'busy' | 'do-not-disturb' | 'out-of-office' | 'offline';
 }
 
+// Check if required environment variables are present
+const clientId = process.env.AZURE_CLIENT_ID;
+const clientSecret = process.env.AZURE_CLIENT_SECRET;
+const tenantId = process.env.AZURE_TENANT_ID;
+
+if (!clientId || !clientSecret || !tenantId) {
+  console.warn('⚠️  Microsoft Teams integration disabled: Missing Azure AD configuration');
+  console.warn('   Please set AZURE_CLIENT_ID, AZURE_CLIENT_SECRET, and AZURE_TENANT_ID environment variables');
+  console.warn('   The application will continue to work without Teams integration');
+}
+
 export class TeamsService {
-  private msalInstance: ConfidentialClientApplication;
+  private msalInstance: ConfidentialClientApplication | null = null;
+  private graphClient: Client | null = null;
+  private isConfigured: boolean = false;
   private scopes = ['https://graph.microsoft.com/Presence.Read', 'https://graph.microsoft.com/User.Read'];
 
   constructor() {
-    this.msalInstance = new ConfidentialClientApplication({
-      auth: {
-        clientId: process.env.MICROSOFT_CLIENT_ID || '',
-        clientSecret: process.env.MICROSOFT_CLIENT_SECRET || '',
-        authority: `https://login.microsoftonline.com/${process.env.MICROSOFT_TENANT_ID || 'common'}`
+    // Only initialize if all required environment variables are present
+    if (clientId && clientSecret && tenantId) {
+      try {
+        this.msalInstance = new ConfidentialClientApplication({
+          auth: {
+            clientId,
+            clientSecret,
+            authority: `https://login.microsoftonline.com/${tenantId}`
+          }
+        });
+        this.isConfigured = true;
+        console.log('✅ Microsoft Teams service initialized successfully');
+      } catch (error) {
+        console.error('❌ Failed to initialize Microsoft Teams service:', error);
+        this.isConfigured = false;
       }
-    });
+    } else {
+      console.log('ℹ️  Microsoft Teams service not configured - running without Teams integration');
+      this.isConfigured = false;
+    }
   }
 
   // Get authentication URL for user login
   getAuthUrl(): string {
+    if (!this.isConfigured) {
+      console.warn('Teams service not configured. Cannot get auth URL.');
+      return 'Teams integration disabled.';
+    }
     const authUrlParameters = {
       scopes: this.scopes,
       redirectUri: process.env.MICROSOFT_REDIRECT_URI || 'http://localhost:3001/api/teams/auth/callback'
     };
 
-    return this.msalInstance.getAuthCodeUrl(authUrlParameters);
+    return this.msalInstance!.getAuthCodeUrl(authUrlParameters);
   }
 
   // Exchange authorization code for access token
   async getAccessTokenFromCode(code: string): Promise<string> {
+    if (!this.isConfigured) {
+      console.warn('Teams service not configured. Cannot get access token.');
+      throw new Error('Teams integration disabled.');
+    }
     try {
       const tokenRequest = {
         code: code,
@@ -77,7 +111,7 @@ export class TeamsService {
         redirectUri: process.env.MICROSOFT_REDIRECT_URI || 'http://localhost:3001/api/teams/auth/callback'
       };
 
-      const response = await this.msalInstance.acquireTokenByCode(tokenRequest);
+      const response = await this.msalInstance!.acquireTokenByCode(tokenRequest);
       return response.accessToken;
     } catch (error) {
       console.error('Error getting access token:', error);
@@ -87,6 +121,10 @@ export class TeamsService {
 
   // Get user presence from Microsoft Graph
   async getUserPresence(accessToken: string, userId?: string): Promise<TeamsPresence> {
+    if (!this.isConfigured) {
+      console.warn('Teams service not configured. Cannot get user presence.');
+      throw new Error('Teams integration disabled.');
+    }
     try {
       const authProvider = new GraphAuthProvider(accessToken);
       const graphClient = Client.initWithMiddleware({ authProvider });
@@ -109,6 +147,10 @@ export class TeamsService {
 
   // Get multiple users' presence
   async getMultipleUsersPresence(accessToken: string, userIds: string[]): Promise<TeamsPresence[]> {
+    if (!this.isConfigured) {
+      console.warn('Teams service not configured. Cannot get multiple users presence.');
+      throw new Error('Teams integration disabled.');
+    }
     try {
       const authProvider = new GraphAuthProvider(accessToken);
       const graphClient = Client.initWithMiddleware({ authProvider });
@@ -175,6 +217,20 @@ export class TeamsService {
 
   // Get engineer status with Teams data
   async getEngineerStatus(accessToken: string, userId: string, userEmail: string, userName: string): Promise<EngineerStatus> {
+    if (!this.isConfigured) {
+      console.warn('Teams service not configured. Cannot get engineer status.');
+      return {
+        userId,
+        email: userEmail,
+        name: userName,
+        teamsStatus: {
+          availability: 'PresenceUnknown',
+          activity: 'PresenceUnknown'
+        },
+        isOnline: false,
+        displayStatus: 'offline'
+      };
+    }
     try {
       const presence = await this.getUserPresence(accessToken, userId);
       const displayStatus = this.mapTeamsStatusToDisplayStatus(presence);
@@ -212,6 +268,20 @@ export class TeamsService {
 
   // Get team members status
   async getTeamEngineersStatus(accessToken: string, engineers: Array<{id: string, email: string, name: string}>): Promise<EngineerStatus[]> {
+    if (!this.isConfigured) {
+      console.warn('Teams service not configured. Cannot get team engineers status.');
+      return engineers.map(engineer => ({
+        userId: engineer.id,
+        email: engineer.email,
+        name: engineer.name,
+        teamsStatus: {
+          availability: 'PresenceUnknown',
+          activity: 'PresenceUnknown'
+        },
+        isOnline: false,
+        displayStatus: 'offline' as const
+      }));
+    }
     try {
       const userIds = engineers.map(eng => eng.id);
       const presences = await this.getMultipleUsersPresence(accessToken, userIds);
